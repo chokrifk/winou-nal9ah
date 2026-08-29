@@ -6,10 +6,11 @@ let realtimeChannel = null;
 let realtimeSubscribed = false;
 
 let map;
-let userPos = { lat: 36.8065, lng: 10.1815 }; // Tunis / Ariana par défaut
+let userPos = { lat: 36.8065, lng: 10.1815 }; // Ariana / Tunis par défaut
 let nearbyStores = [];
 
 const markersMap = new Map();
+const osmMarkersGroup = L.layerGroup(); // Groupe pour les stations/magasins OSM
 const processedReportIds = new Set();
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -52,6 +53,8 @@ function initMap() {
     maxZoom: 19,
     attribution: "© OpenStreetMap"
   }).addTo(map);
+
+  osmMarkersGroup.addTo(map);
 
   setTimeout(() => { map.invalidateSize(); }, 400);
 
@@ -110,6 +113,7 @@ window.focusOnMapMarker = function(reportId, lat, lng) {
   document.getElementById("map")?.scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
+// RECHERCHE DES STATIONS ET COMMERCES ET AFFICHAGE SUR LA CARTE + LISTE
 async function fetchNearbyShopsAndFuelOSM(lat, lng) {
   const storeSelect = document.getElementById("store-select");
   if (!storeSelect) return;
@@ -117,14 +121,14 @@ async function fetchNearbyShopsAndFuelOSM(lat, lng) {
   const query = `
     [out:json];
     (
-      node["shop"="supermarket"](around:3000, ${lat}, ${lng});
-      node["shop"="convenience"](around:3000, ${lat}, ${lng});
-      node["amenity"="fuel"](around:3000, ${lat}, ${lng});
-      way["shop"="supermarket"](around:3000, ${lat}, ${lng});
-      way["shop"="convenience"](around:3000, ${lat}, ${lng});
-      way["amenity"="fuel"](around:3000, ${lat}, ${lng});
+      node["shop"="supermarket"](around:4000, ${lat}, ${lng});
+      node["shop"="convenience"](around:4000, ${lat}, ${lng});
+      node["amenity"="fuel"](around:4000, ${lat}, ${lng});
+      way["shop"="supermarket"](around:4000, ${lat}, ${lng});
+      way["shop"="convenience"](around:4000, ${lat}, ${lng});
+      way["amenity"="fuel"](around:4000, ${lat}, ${lng});
     );
-    out center 30;
+    out center 40;
   `;
 
   try {
@@ -132,6 +136,7 @@ async function fetchNearbyShopsAndFuelOSM(lat, lng) {
     const data = await response.json();
 
     storeSelect.innerHTML = "";
+    osmMarkersGroup.clearLayers(); // Nettoyer les anciens marqueurs sur la carte
     nearbyStores = data.elements || [];
 
     if (nearbyStores.length === 0) {
@@ -148,12 +153,39 @@ async function fetchNearbyShopsAndFuelOSM(lat, lng) {
       const isFuel = store.tags.amenity === "fuel";
       const defaultName = isFuel ? "Station-Service" : "Commerce de proximité";
       const name = store.tags.name || store.tags.brand || defaultName;
-      const icon = isFuel ? "⛽ " : "🏬 ";
+      const iconText = isFuel ? "⛽ " : "🏬 ";
 
+      // 1. Ajouter dans la liste déroulante
       const opt = document.createElement("option");
       opt.value = index;
-      opt.textContent = `${icon}${name}`;
+      opt.textContent = `${iconText}${name}`;
       storeSelect.appendChild(opt);
+
+      // 2. Coordonnées du lieu (pour les 'way', Overpass renvoie 'center')
+      const sLat = store.lat || (store.center && store.center.lat);
+      const sLng = store.lon || (store.center && store.center.lon);
+
+      if (sLat && sLng) {
+        // Création d'un marqueur visuel sur la carte pour chaque station/commerce trouvé
+        const markerColor = isFuel ? "#f97316" : "#0ea5e9"; // Orange pour essence, Bleu pour commerce
+        const pinIcon = L.divIcon({
+          className: 'custom-osm-pin',
+          html: `<div style="background-color: ${markerColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); white-space: nowrap;">${iconText}${name}</div>`,
+          iconSize: [0, 0],
+          iconAnchor: [15, 15]
+        });
+
+        const osmMarker = L.marker([sLat, sLng], { icon: pinIcon })
+          .bindPopup(`
+            <div style="font-family: inherit;">
+              <b>${iconText}${name}</b><br/>
+              <span style="color: #64748b; font-size: 0.85rem;">${isFuel ? "Station-service" : "Commerce"}</span><br/>
+              <button onclick="document.getElementById('store-select').value='${index}'; document.getElementById('report-form').scrollIntoView({behavior:'smooth'});" style="margin-top: 6px; background: #10b981; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Sélectionner pour signaler</button>
+            </div>
+          `);
+
+        osmMarkersGroup.addLayer(osmMarker);
+      }
     });
   } catch (err) {
     storeSelect.innerHTML = "<option value=''>Station / Commerce de proximité</option>";
@@ -204,7 +236,6 @@ function addReportToUI(report, isNew = true) {
   const storeName = report.store_name || "Station / Commerce";
   const productName = report.product_name || "Produit";
 
-  // Marqueur sur la carte avec le nom du produit ET de la station/commerce bien visibles
   if (!markersMap.has(reportId)) {
     const marker = L.marker([report.latitude, report.longitude])
       .addTo(map)
@@ -219,10 +250,8 @@ function addReportToUI(report, isNew = true) {
     markersMap.set(reportId, marker);
   }
 
-  // Ajout dans la liste (Flux en direct) avec affichage explicite du produit ET de la station
   const feedContainer = document.getElementById("reports-feed");
   if (feedContainer) {
-    // Si c'était le message "Aucun signalement", on le retire
     if (feedContainer.querySelector("p")) {
       feedContainer.innerHTML = "";
     }
