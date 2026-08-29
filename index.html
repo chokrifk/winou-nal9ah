@@ -13,7 +13,12 @@
 <body>
 
   <header class="app-header">
-    <h1>🛒 Disponibilité en Direct</h1>
+    <div class="header-top">
+      <h1>🛒 Disponibilité en Direct</h1>
+      <div id="online-users-badge" class="online-badge">
+        <span class="pulse-green"></span> <span id="connected-users-count">1</span> en ligne
+      </div>
+    </div>
     <p>Signalez et trouvez les produits & carburants disponibles à proximité</p>
     <div class="powered-by">Powered by Choco</div>
   </header>
@@ -27,7 +32,6 @@
         <h2 class="card-title">📝 Publier un signalement</h2>
         <form id="report-form">
           
-          <!-- LISTE FIXE DES PRODUITS ET CARBURANTS -->
           <div class="form-group">
             <label for="product-select">Produit / Carburant</label>
             <select id="product-select" class="form-control" onchange="toggleCustomProductInput(this)" required>
@@ -54,7 +58,6 @@
             </select>
           </div>
 
-          <!-- Champ masqué par défaut pour saisie personnalisée -->
           <div class="form-group" id="custom-product-group" style="display: none;">
             <label for="product-custom">Nom du produit personnalisé</label>
             <input type="text" id="product-custom" class="form-control" placeholder="Entrez le nom..." />
@@ -86,8 +89,28 @@
 
     </section>
 
-    <!-- Colonne de droite : Flux en direct -->
+    <!-- Colonne de droite : Stats & Flux en direct -->
     <section class="right-column">
+      
+      <!-- Rapport Statistique -->
+      <div class="card-panel stats-panel">
+        <h2 class="card-title">📊 Rapport en direct</h2>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-num" id="stat-total">0</span>
+            <span class="stat-lbl">Total signalements</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-num text-green" id="stat-dispo">0</span>
+            <span class="stat-lbl">Disponibles</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-num text-red" id="stat-rupture">0</span>
+            <span class="stat-lbl">En rupture</span>
+          </div>
+        </div>
+      </div>
+
       <div class="card-panel">
         <div class="feed-header">
           <h2 class="card-title" style="margin-bottom:0;">Derniers signalements</h2>
