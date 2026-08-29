@@ -65,7 +65,7 @@ function initMap() {
   fetchReports();
   listenRealtimeReports();
 
-  // Gestion robuste de la géolocalisation compatible PC et Mobile
+  // Géolocalisation compatible PC et Mobile
   if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -121,7 +121,7 @@ window.focusOnMapMarker = function(reportId, lat, lng) {
   document.getElementById("map")?.scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
-// Suivi des utilisateurs en ligne avec base 2903
+// Suivi des utilisateurs en direct à partir de 2903
 function initPresenceTracking() {
   if (!supabaseClient) return;
   presenceChannel = supabaseClient.channel("online-users-room", {
@@ -134,11 +134,9 @@ function initPresenceTracking() {
       const liveCount = Object.keys(state).length;
       const totalOnline = BASE_ONLINE_USERS + Math.max(0, liveCount);
 
-      // Mise à jour de l'en-tête
       const countEl = document.getElementById("connected-users-count");
       if (countEl) countEl.textContent = totalOnline;
 
-      // Mise à jour du rapport statistique
       const statOnlineEl = document.getElementById("stat-online");
       if (statOnlineEl) statOnlineEl.textContent = totalOnline;
     })
@@ -149,6 +147,7 @@ function initPresenceTracking() {
     });
 }
 
+// Sélection automatique du commerce depuis la carte
 window.selectStoreFromMap = function(index) {
   const storeSelect = document.getElementById("store-select");
   if (storeSelect) {
@@ -257,21 +256,24 @@ async function fetchReports() {
   if (allReportsData.length > 0) {
     allReportsData.forEach((report) => addReportToUI(report, false));
   } else if (feedContainer) {
-    feedContainer.innerHTML = "<p style='color:var(--text-muted); text-align:center;'>Aucun signalement pour le moment.</p>";
+    feedContainer.innerHTML = "<p style='color:#64748b; text-align:center;'>Aucun signalement pour le moment.</p>";
   }
 }
 
-// Calcul et mise à jour des statistiques & région la plus active
+// Mise à jour du rapport statistique et de la région active
 function updateStatsDashboard() {
   const total = allReportsData.length;
   const dispo = allReportsData.filter(r => r.status === "Disponible").length;
   const rupture = allReportsData.filter(r => r.status === "Rupture").length;
 
-  document.getElementById("stat-total").textContent = total;
-  document.getElementById("stat-dispo").textContent = dispo;
-  document.getElementById("stat-rupture").textContent = rupture;
+  const totalEl = document.getElementById("stat-total");
+  const dispoEl = document.getElementById("stat-dispo");
+  const ruptureEl = document.getElementById("stat-rupture");
 
-  // Déterminer la région / ville la plus active à partir des adresses
+  if (totalEl) totalEl.textContent = total;
+  if (dispoEl) dispoEl.textContent = dispo;
+  if (ruptureEl) ruptureEl.textContent = rupture;
+
   const regionEl = document.getElementById("stat-top-region");
   if (regionEl) {
     if (allReportsData.length === 0) {
@@ -280,7 +282,6 @@ function updateStatsDashboard() {
       const counts = {};
       allReportsData.forEach(r => {
         if (r.address) {
-          // Extrait la dernière partie de l'adresse (souvent la ville/région)
           const parts = r.address.split(",");
           const city = parts[parts.length - 1].trim();
           if (city) {
