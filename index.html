@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Signalement Disponibilité Produits</title>
+  <title>Disponibilité en Direct</title>
   
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- Styles personnalisés -->
+  <!-- Styles CSS -->
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -15,6 +15,7 @@
   <header class="app-header">
     <h1>🛒 Disponibilité en Direct</h1>
     <p>Signalez et trouvez les produits disponibles dans vos commerces de proximité</p>
+    <div class="powered-by">Powered by Choco</div>
   </header>
 
   <main class="main-container">
@@ -25,9 +26,28 @@
       <div class="card-panel">
         <h2 class="card-title">📝 Publier un signalement</h2>
         <form id="report-form">
+          
+          <!-- LISTE FIXE DES PRODUITS -->
           <div class="form-group">
-            <label for="product-name">Produit</label>
-            <input type="text" id="product-name" class="form-control" placeholder="Ex: Lait, Eau minérale, Sucre..." required />
+            <label for="product-select">Produit</label>
+            <select id="product-select" class="form-control" onchange="toggleCustomProductInput(this)" required>
+              <option value="" disabled selected>-- Sélectionnez un produit --</option>
+              <option value="Eau minérale">🥤 Eau minérale</option>
+              <option value="Lait">🥛 Lait</option>
+              <option value="Sucre">🧂 Sucre</option>
+              <option value="Farine">🌾 Farine</option>
+              <option value="Huile d'olive">🫒 Huile d'olive</option>
+              <option value="Huile végétale">🧴 Huile végétale</option>
+              <option value="Pâtes / Riz">🍝 Pâtes / Riz</option>
+              <option value="Café">☕ Café</option>
+              <option value="Autre">✏️ Autre (Saisie libre)</option>
+            </select>
+          </div>
+
+          <!-- Champ masqué par défaut pour saisie personnalisée si "Autre" est choisi -->
+          <div class="form-group" id="custom-product-group" style="display: none;">
+            <label for="product-custom">Nom du produit personnalisé</label>
+            <input type="text" id="product-custom" class="form-control" placeholder="Entrez le nom du produit..." />
           </div>
 
           <div class="form-group">
@@ -73,6 +93,10 @@
     </section>
 
   </main>
+
+  <footer class="app-footer">
+    <p>Powered by <strong>Choco</strong></p>
+  </footer>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
