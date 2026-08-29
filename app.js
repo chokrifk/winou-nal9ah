@@ -1,7 +1,8 @@
 // Configuration Supabase
 const SUPABASE_URL = "https://iahzasnluqapwppclfmn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_TIb7eyfTYz5x-DhexGOWDw_VkPja_E-";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Utilisation d'un nom de variable unique pour éviter le conflit
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let map;
 let userPos = { lat: 36.8065, lng: 10.1815 }; // Position par défaut (Tunis)
