@@ -26,6 +26,33 @@ body {
   min-height: 100vh;
 }
 
+/* Bandeau Live Info / Flash Actu (Style Mosaique) */
+.live-ticker-banner {
+  background: #0f172a;
+  color: white;
+  display: flex;
+  align-items: center;
+  font-size: 0.85rem;
+  border-bottom: 2px solid #059669;
+  z-index: 1001;
+}
+
+.ticker-label {
+  background: #dc2626;
+  color: white;
+  padding: 8px 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+}
+
+.ticker-content {
+  flex: 1;
+  overflow: hidden;
+  padding: 0 10px;
+}
+
 /* En-tête */
 .app-header {
   background: linear-gradient(135deg, #065f46, #047857);
@@ -99,7 +126,6 @@ body {
   height: 9px;
   background-color: #34d399;
   border-radius: 50%;
-  box-shadow: 0 0 0 rgba(52, 211, 153, 0.5);
   animation: pulse-animation 2s infinite;
 }
 
@@ -150,27 +176,9 @@ body {
   gap: 8px;
 }
 
-/* Recherche & Filtres Pills */
+/* Recherche par Liste & Filtres Pills */
 .search-panel-box {
-  padding: 14px;
-}
-
-.search-bar-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 12px;
-  font-size: 0.9rem;
-}
-
-.search-bar-wrapper input {
-  padding-left: 36px;
-  background-color: #f1f5f9;
+  padding: 16px;
 }
 
 .filter-pills {
@@ -422,6 +430,31 @@ body {
 }
 .badge-dispo { background: #d1fae5; color: #065f46; }
 .badge-rupture { background: #fee2e2; color: #991b1b; }
+
+/* Assistant IA Flottant */
+.ai-floating-assistant {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  padding: 12px 18px;
+  border-radius: 30px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+  z-index: 9998;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-floating-assistant:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.6);
+}
 
 /* Toast Notification élégant */
 .toast-notification {
