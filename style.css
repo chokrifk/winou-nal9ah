@@ -26,7 +26,7 @@ body {
   min-height: 100vh;
 }
 
-/* Bandeau Live Info / Flash Actu (Style Mosaique) */
+/* Bandeau Flash Info Stocks (Dynamique) */
 .live-ticker-banner {
   background: #0f172a;
   color: white;
@@ -317,48 +317,6 @@ body {
 
 .btn-locate:hover { background: #f8fafc; }
 
-/* Rapport Statistique */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-
-.stat-box {
-  background: #f8fafc;
-  border: 1px solid var(--border-color);
-  padding: 12px;
-  border-radius: 10px;
-  text-align: center;
-}
-
-.stat-num {
-  display: block;
-  font-size: 1.4rem;
-  font-weight: 800;
-  color: var(--text-main);
-}
-
-.stat-num.text-green { color: var(--success-color); }
-.stat-num.text-red { color: var(--danger-color); }
-.stat-num.text-blue { color: #0284c7; }
-
-.stat-lbl {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.stat-region-box {
-  margin-top: 12px;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  text-align: center;
-  border-top: 1px solid var(--border-color);
-  padding-top: 10px;
-}
-
 /* Flux d'actualités */
 .feed-header {
   display: flex;
@@ -431,19 +389,19 @@ body {
 .badge-dispo { background: #d1fae5; color: #065f46; }
 .badge-rupture { background: #fee2e2; color: #991b1b; }
 
-/* Assistant IA Flottant & Modale */
+/* Assistant IA Flottant (Style Claude/Gemini) */
 .ai-floating-assistant {
   position: fixed;
   bottom: 24px;
   left: 24px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
   color: white;
-  padding: 12px 18px;
+  padding: 12px 20px;
   border-radius: 30px;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4);
   z-index: 9998;
   transition: transform 0.2s, box-shadow 0.2s;
   display: flex;
@@ -453,14 +411,25 @@ body {
 
 .ai-floating-assistant:hover {
   transform: scale(1.05);
-  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.6);
+  box-shadow: 0 10px 30px rgba(124, 58, 237, 0.6);
 }
 
+.ai-sparkle-icon {
+  font-size: 1.1rem;
+  animation: spin-slow 4s linear infinite;
+}
+
+@keyframes spin-slow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Modale Assistant IA Style Claude / Gemini */
 .ai-modal-overlay {
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(6px);
   z-index: 10000;
   display: flex;
   align-items: center;
@@ -468,48 +437,118 @@ body {
 }
 
 .ai-modal-content {
-  background: white;
-  width: 90%; max-width: 420px;
-  border-radius: 16px;
+  background: #ffffff;
+  width: 92%; max-width: 480px;
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.25);
   display: flex;
   flex-direction: column;
-  height: 480px;
+  height: 540px;
+  border: 1px solid rgba(255,255,255,0.1);
 }
 
 .ai-modal-header {
-  background: #2563eb; color: white;
-  padding: 14px 18px;
-  display: flex; justify-content: space-between; align-items: center;
-  font-weight: 700;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: white;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #334155;
+}
+
+.ai-header-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-logo-badge {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: #a78bfa;
+}
+
+.ai-model-subtitle {
+  font-size: 0.72rem;
+  color: #94a3b8;
 }
 
 .ai-close-btn {
-  background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;
+  background: none; border: none; color: #94a3b8; font-size: 1.6rem; cursor: pointer;
+  transition: color 0.2s;
 }
+.ai-close-btn:hover { color: white; }
 
 .ai-chat-messages {
-  flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem;
+  flex: 1; padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; font-size: 0.9rem;
+  background: #fafaf9;
 }
 
 .ai-msg {
-  padding: 10px 14px; border-radius: 12px; max-width: 85%; line-height: 1.4;
+  display: flex; gap: 10px; max-width: 90%;
 }
-.ai-msg.bot { background: #f1f5f9; color: #0f172a; align-self: flex-start; }
-.ai-msg.user { background: #2563eb; color: white; align-self: flex-end; }
+.ai-msg.bot { align-self: flex-start; }
+.ai-msg.user { align-self: flex-end; flex-direction: row-reverse; }
+
+.ai-avatar {
+  width: 28px; height: 28px; border-radius: 50%; background: #7c3aed; color: white;
+  display: flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0;
+}
+
+.ai-msg.user .ai-bubble {
+  background: #7c3aed; color: white; border-radius: 14px 14px 2px 14px; padding: 10px 14px;
+}
+
+.ai-bubble {
+  background: white; color: #0f172a; border-radius: 14px 14px 14px 2px; padding: 12px 16px;
+  border: 1px solid var(--border-color); box-shadow: 0 2px 5px rgba(0,0,0,0.02); line-height: 1.45;
+}
+
+/* Barre de suggestions rapides style Claude */
+.ai-suggestions-bar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #f1f5f9;
+  border-top: 1px solid #e2e8f0;
+  overflow-x: auto;
+}
+
+.ai-suggestions-bar button {
+  background: white;
+  border: 1px solid #cbd5e1;
+  padding: 5px 10px;
+  border-radius: 16px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.ai-suggestions-bar button:hover {
+  background: #7c3aed;
+  color: white;
+  border-color: #7c3aed;
+}
 
 .ai-chat-input-area {
-  padding: 12px; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; background: #f8fafc;
+  padding: 12px 16px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; background: white; align-items: center;
 }
 
 .ai-chat-input-area input {
-  flex: 1; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none;
+  flex: 1; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 0.9rem; outline: none;
+  background: #f8fafc; transition: border-color 0.2s;
 }
+.ai-chat-input-area input:focus { border-color: #7c3aed; background: white; }
 
-.ai-chat-input-area button {
-  background: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; cursor: pointer;
+.ai-send-btn {
+  background: #7c3aed; color: white; border: none; width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background 0.2s;
 }
+.ai-send-btn:hover { background: #6d28d9; }
 
 /* Toast Notification élégant */
 .toast-notification {
