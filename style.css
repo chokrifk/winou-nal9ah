@@ -373,3 +373,15 @@ body {
 
 .text-green { color: #10b981; }
 .text-red { color: #ef4444; }
+.header-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tunisia-flag-gif {
+  width: 38px;
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
