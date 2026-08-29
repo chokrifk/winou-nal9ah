@@ -142,7 +142,6 @@ window.selectStoreFromMap = function(index) {
   const storeSelect = document.getElementById("store-select");
   if (storeSelect) {
     storeSelect.value = index;
-    // Déclencher un effet visuel de mise en surbrillance du select
     storeSelect.style.borderColor = "#10b981";
     storeSelect.style.boxShadow = "0 0 0 3px rgba(16, 185, 129, 0.2)";
     setTimeout(() => {
@@ -229,17 +228,23 @@ async function fetchNearbyShopsAndFuelOSM(lat, lng) {
 }
 
 async function fetchReports() {
-  if (!supabaseClient) return;
+  if (!supabaseClient) {
+    console.warn("Client Supabase non initialisé");
+    return;
+  }
 
   const { data: reports, error } = await supabaseClient
     .from("reports")
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) return;
+  if (error) {
+    console.error("Erreur Supabase lors de la récupération des rapports :", error);
+    return;
+  }
 
   allReportsData = reports || [];
-  updateStatsDashboard();
+  updateStatsDashboard(); // Met à jour le rapport en direct
 
   const feedContainer = document.getElementById("reports-feed");
   if (feedContainer) feedContainer.innerHTML = "";
@@ -251,15 +256,19 @@ async function fetchReports() {
   }
 }
 
-// Mise à jour du tableau de bord / rapport
+// Mise à jour du tableau de bord / rapport statistique
 function updateStatsDashboard() {
   const total = allReportsData.length;
   const dispo = allReportsData.filter(r => r.status === "Disponible").length;
   const rupture = allReportsData.filter(r => r.status === "Rupture").length;
 
-  document.getElementById("stat-total").textContent = total;
-  document.getElementById("stat-dispo").textContent = dispo;
-  document.getElementById("stat-rupture").textContent = rupture;
+  const totalEl = document.getElementById("stat-total");
+  const dispoEl = document.getElementById("stat-dispo");
+  const ruptureEl = document.getElementById("stat-rupture");
+
+  if (totalEl) totalEl.textContent = total;
+  if (dispoEl) dispoEl.textContent = dispo;
+  if (ruptureEl) ruptureEl.textContent = rupture;
 }
 
 function addReportToUI(report, isNew = true) {
