@@ -1,257 +1,69 @@
 <!DOCTYPE html>
-<html lang="fr" dir="ltr">
+<html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Winou Nal9ah? - وينو نلقاه</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Leaflet OpenStreetMap CSS & JS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f3f4f6;
-            -webkit-tap-highlight-color: transparent;
-        }
-        #map {
-            height: calc(100vh - 220px);
-            min-height: 350px;
-            width: 100%;
-            border-radius: 1rem;
-            z-index: 10;
-        }
-        .custom-popup .leaflet-popup-content-wrapper {
-            border-radius: 12px;
-            padding: 4px;
-        }
-        /* Mobile bottom sheet simulation */
-        .glass-header {
-            background: rgba(15, 23, 42, 0.92);
-            backdrop-filter: blur(12px);
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Winou Nal9ah?</title>
+  
+  <!-- Leaflet CSS (Gratuit) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#2563eb" />
 </head>
-<body class="bg-slate-100 min-h-screen flex flex-col justify-between text-slate-800">
+<body>
 
-    <!-- Header Banner -->
-    <header class="glass-header text-white px-4 py-3 sticky top-0 z-50 shadow-md">
-        <div class="max-w-xl mx-auto flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-                <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center font-bold text-xl shadow-lg">
-                    💧
-                </div>
-                <div>
-                    <h1 class="font-extrabold text-lg leading-tight tracking-wide">Winou Nal9ah?</h1>
-                    <p class="text-xs text-blue-300 font-arabic">وينو نلقاه؟ - تونس</p>
-                </div>
-            </div>
-            <span class="bg-blue-900/60 border border-blue-400/30 text-blue-200 text-xs px-2.5 py-1 rounded-full flex items-center gap-1 font-medium">
-                <i class="fa-solid fa-bottle-water"></i> Eau Bouteille
-            </span>
-        </div>
-    </header>
+  <header class="app-header">
+    <h1>Winou Nal9ah? 📍</h1>
+    <p>Signalement collaboratif de produits & commerces de proximité</p>
+  </header>
 
-    <!-- Main Content Container -->
-    <main class="max-w-xl mx-auto w-full p-3 flex-1 flex flex-col gap-3">
+  <main id="map-container">
+    <div id="map"></div>
+  </main>
 
-        <!-- Controls Bar -->
-        <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex flex-col gap-2">
-            <!-- Article Switcher (Ready for expansion) -->
-            <div class="flex items-center justify-between gap-2">
-                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Article recherché:</label>
-                <select id="productSelect" class="bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-lg p-2 font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                    <option value="eau_1_5l">🍾 Eau Minérale (1.5L / 5L)</option>
-                    <option value="lait" disabled>🥛 Lait (Bientôt disponible)</option>
-                    <option value="huile" disabled>🧴 Huile (Bientôt disponible)</option>
-                    <option value="sucre" disabled>🍬 Sucre (Bientôt disponible)</option>
-                </select>
-            </div>
+  <section class="report-panel">
+    <h3>Signaler un produit dans un commerce</h3>
+    <form id="report-form" onsubmit="handleReportSubmit(event)">
+      <div class="input-group">
+        <label for="store-select">Magasin / Épicerie à proximité :</label>
+        <select id="store-select" required>
+          <option value="">Recherche des commerces proches...</option>
+        </select>
+      </div>
 
-            <!-- Locate button & Status Info -->
-            <div class="flex justify-between items-center pt-1 border-t border-slate-100 text-xs text-slate-600">
-                <button id="locateBtn" class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
-                    <i class="fa-solid fa-location-crosshairs"></i> Me géolocaliser
-                </button>
-                <span id="geoStatus" class="italic text-slate-500">Tunis, Tunisie</span>
-            </div>
-        </div>
+      <div class="input-group">
+        <label for="product-name">Produit :</label>
+        <select id="product-name" required>
+          <option value="">-- Sélectionner un produit --</option>
+          <option value="Eau minérale">Eau minérale</option>
+          <option value="Lait">Lait</option>
+          <option value="Sucre">Sucre</option>
+          <option value="Farine">Farine</option>
+          <option value="Huile d'olive">Huile d'olive</option>
+          <option value="Autre">Autre</option>
+        </select>
+      </div>
 
-        <!-- Map View Container -->
-        <div class="relative bg-white p-1 rounded-2xl shadow-sm border border-slate-200">
-            <div id="map"></div>
-            <!-- Legend overlay -->
-            <div class="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md p-2 rounded-lg shadow-md border border-slate-200 text-xs z-[400] flex flex-col gap-1">
-                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> <span>Dispo (فمّا)</span></div>
-                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span> <span>Rupture (مقطوع)</span></div>
-                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-400 inline-block"></span> <span>Pas d'info (بدون معلومة)</span></div>
-            </div>
-        </div>
+      <div class="input-group">
+        <label for="status">Disponibilité :</label>
+        <select id="status" required>
+          <option value="Disponible">🟢 En stock</option>
+          <option value="Rupture">🔴 En rupture</option>
+        </select>
+      </div>
 
-        <!-- Nearby Shops List -->
-        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
-            <h2 class="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-                <i class="fa-solid fa-store text-blue-600"></i> Points de vente à proximité
-            </h2>
-            <div id="shopsList" class="space-y-3">
-                <!-- Dynamic Content Loaded Here -->
-            </div>
-        </div>
+      <button type="submit" class="submit-btn">Publier le signalement</button>
+    </form>
+  </section>
 
-    </main>
+  <footer class="app-footer">
+    <p>Powered by Choco</p>
+  </footer>
 
-    <!-- Footer with "Powered by Choco" -->
-    <footer class="bg-slate-900 text-slate-400 text-center py-4 px-3 text-xs border-t border-slate-800 mt-4">
-        <p class="mb-1 font-medium text-slate-300">Winou Nal9ah? - Plateforme citoyenne collaborative Tunisie 🇹🇳</p>
-        <p class="flex items-center justify-center gap-1 text-slate-400 font-semibold">
-            <span>Powered by</span>
-            <span class="text-amber-400 font-bold tracking-wide flex items-center gap-1">
-                🍫 Choco
-            </span>
-        </p>
-    </footer>
-
-    <!-- WebApp Logic Script -->
-    <script>
-        // Initial state & mock stores around Tunis / local coordinates
-        let userPos = [36.8065, 10.1815]; // Default Tunis center
-        let map, userMarker;
-        let markersGroup;
-
-        // Sample initial data points (stores)
-        let stores = [
-            { id: 1, name: "Superette Ben Ammar (حانووت)", lat: 36.8075, lng: 10.1825, votesAvailable: 12, votesOut: 1, lastUpdate: "Il y a 10 min", dist: "120m" },
-            { id: 2, name: "Carrefour Express", lat: 36.8050, lng: 10.1800, votesAvailable: 2, votesOut: 15, lastUpdate: "Il y a 25 min", dist: "250m" },
-            { id: 3, name: "Magasin Général (MG)", lat: 36.8090, lng: 10.1840, votesAvailable: 24, votesOut: 0, lastUpdate: "Il y a 5 min", dist: "400m" },
-            { id: 4, name: "Épicerie El Manar", lat: 36.8030, lng: 10.1780, votesAvailable: 0, votesOut: 0, lastUpdate: "Pas encore de signalement", dist: "650m" }
-        ];
-
-        function initMap() {
-            map = L.map('map').setView(userPos, 15);
-
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap'
-            }).addTo(map);
-
-            markersGroup = L.layerGroup().addTo(map);
-            renderMapAndList();
-        }
-
-        function getStatus(store) {
-            const total = store.votesAvailable + store.votesOut;
-            if (total === 0) return { label: "Pas d'info", color: "bg-slate-400", hex: "#94a3b8", text: "text-slate-600" };
-            if (store.votesAvailable > store.votesOut) {
-                return { label: "Disponible (فمّا)", color: "bg-emerald-500", hex: "#10b981", text: "text-emerald-700" };
-            } else {
-                return { label: "Rupture (مقطوع)", color: "bg-rose-500", hex: "#f43f5e", text: "text-rose-700" };
-            }
-        }
-
-        function renderMapAndList() {
-            markersGroup.clearLayers();
-            const listEl = document.getElementById('shopsList');
-            listEl.innerHTML = '';
-
-            // User marker
-            userMarker = L.circleMarker(userPos, {
-                radius: 8,
-                fillColor: "#3b82f6",
-                color: "#ffffff",
-                weight: 3,
-                opacity: 1,
-                fillOpacity: 0.9
-            }).addTo(markersGroup).bindPopup("<b>Vous êtes ici</b>");
-
-            stores.forEach(store => {
-                const status = getStatus(store);
-
-                // Add map marker
-                const marker = L.circleMarker([store.lat, store.lng], {
-                    radius: 10,
-                    fillColor: status.hex,
-                    color: "#ffffff",
-                    weight: 2,
-                    opacity: 1,
-                    fillOpacity: 0.95
-                }).addTo(markersGroup);
-
-                marker.bindPopup(`
-                    <div class="p-1">
-                        <strong style="font-size:14px; display:block;">${store.name}</strong>
-                        <span style="color:${status.hex}; font-weight:bold; font-size:12px;">${status.label}</span><br/>
-                        <small style="color:#64748b;">Dernier avis: ${store.lastUpdate}</small>
-                    </div>
-                `);
-
-                // Add to List View
-                const itemDiv = document.createElement('div');
-                itemDiv.className = "p-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white transition shadow-sm";
-                itemDiv.innerHTML = `
-                    <div class="flex justify-between items-start gap-2 mb-2">
-                        <div>
-                            <h3 class="font-bold text-slate-800 text-base">${store.name}</h3>
-                            <p class="text-xs text-slate-500"><i class="fa-solid fa-person-walking"></i> à ~${store.dist} • <span class="text-slate-400">${store.lastUpdate}</span></p>
-                        </div>
-                        <span class="${status.color} text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
-                            ${status.label}
-                        </span>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2 mt-3">
-                        <button onclick="vote(${store.id}, 'yes')" class="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-sm">
-                            <i class="fa-solid fa-circle-check"></i> 🟢 فمّا ماء (Oui)
-                        </button>
-                        <button onclick="vote(${store.id}, 'no')" class="bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-sm">
-                            <i class="fa-solid fa-circle-xmark"></i> 🔴 مقطوع (Rupture)
-                        </button>
-                    </div>
-                `;
-                listEl.appendChild(itemDiv);
-            });
-        }
-
-        function vote(storeId, type) {
-            const store = stores.find(s => s.id === storeId);
-            if (store) {
-                if (type === 'yes') store.votesAvailable++;
-                else store.votesOut++;
-                store.lastUpdate = "À l'instant";
-
-                // Toast notification
-                alert(`Merci ! Votre signalement pour "${store.name}" a été pris en compte.`);
-                renderMapAndList();
-            }
-        }
-
-        // Geolocation trigger
-        document.getElementById('locateBtn').addEventListener('click', () => {
-            const statusEl = document.getElementById('geoStatus');
-            statusEl.innerText = "Recherche GPS en cours...";
-
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        userPos = [position.coords.latitude, position.coords.longitude];
-                        map.setView(userPos, 16);
-                        statusEl.innerText = "Position mise à jour ✅";
-                        renderMapAndList();
-                    },
-                    (error) => {
-                        statusEl.innerText = "Position par défaut (Tunis)";
-                        alert("Impossible d'accéder à la géolocalisation. Activation du mode position par défaut.");
-                    }
-                );
-            } else {
-                alert("La géolocalisation n'est pas supportée par votre navigateur.");
-            }
-        });
-
-        window.onload = initMap;
-    </script>
+  <!-- Leaflet & Supabase CDN (Gratuits) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
 </body>
 </html>
