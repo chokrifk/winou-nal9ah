@@ -3,14 +3,14 @@ const SUPABASE_URL = "https://iahzasnluqapwppclfmn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_TIb7eyfTYz5x-DhexGOWDw_VkPja_E-";
 
 let supabaseClient = null;
+let realtimeChannel = null;
 let map;
 let userPos = { lat: 36.8065, lng: 10.1815 }; // Position par défaut (Tunis)
 let nearbyStores = [];
-const markersMap = new Map(); // Stocke les marqueurs Leaflet pour pouvoir les cibler au clic
+const markersMap = new Map(); // Stocke les marqueurs Leaflet
 
 // Initialisation au chargement du DOM
 document.addEventListener("DOMContentLoaded", () => {
-  // Initialisation sécurisée du client Supabase
   try {
     if (window.supabase && window.supabase.createClient) {
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -21,32 +21,30 @@ document.addEventListener("DOMContentLoaded", () => {
     console.warn("Connexion Supabase en mode fallback:", err);
   }
 
-  // Écoute de la soumission du formulaire
   const reportForm = document.getElementById("report-form");
   if (reportForm) {
     reportForm.addEventListener("submit", handleReportSubmit);
   }
 
-  // Initialisation de la carte et des données
   initMap();
 });
 
 function initMap() {
-  // 1. Déclaration de la carte
   map = L.map("map").setView([userPos.lat, userPos.lng], 14);
 
-  // 2. Couche OpenStreetMap
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "© OpenStreetMap"
   }).addTo(map);
 
-  // Force le rendu d'affichage de la carte
   setTimeout(() => {
     map.invalidateSize();
   }, 400);
 
-  // 3. Géolocalisation de l'utilisateur
+  // Charger les données initiales une seule fois
+  fetchReports();
+  listenRealtimeReports();
+
   if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -64,25 +62,19 @@ function initMap() {
         }).addTo(map).bindPopup("Vous êtes ici");
 
         fetchNearbyShopsOSM(userPos.lat, userPos.lng);
-        fetchReports();
-        listenRealtimeReports();
       },
       (err) => {
         console.warn("GPS non disponible ou refusé, utilisation position par défaut.");
         fetchNearbyShopsOSM(userPos.lat, userPos.lng);
-        fetchReports();
-        listenRealtimeReports();
       },
       { timeout: 10000 }
     );
   } else {
     fetchNearbyShopsOSM(userPos.lat, userPos.lng);
-    fetchReports();
-    listenRealtimeReports();
   }
 }
 
-// Fonction utilitaire : Récupérer l'adresse lisible via Reverse Geocoding (Nominatim)
+// Récupération de l'adresse lisible via Reverse Geocoding
 async function getAddressFromCoords(lat, lng) {
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
@@ -99,24 +91,23 @@ async function getAddressFromCoords(lat, lng) {
   return "Adresse non disponible";
 }
 
-// Centre et zoome sur le marqueur correspondant au clic sur une notification/liste
+// Focus sur la carte
 window.focusOnMapMarker = function(reportId, lat, lng) {
   if (!map) return;
   map.setView([lat, lng], 17, { animate: true });
   
-  const marker = markersMap.get(reportId);
+  const marker = markersMap.get(String(reportId));
   if (marker) {
     marker.openPopup();
   }
   
-  // Fait défiler la page jusqu'à la carte si nécessaire
   const mapElement = document.getElementById("map");
   if (mapElement) {
     mapElement.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 };
 
-// Recherche des commerces à proximité via l'API Overpass
+// Recherche des commerces à proximité
 async function fetchNearbyShopsOSM(lat, lng) {
   const storeSelect = document.getElementById("store-select");
   if (!storeSelect) return;
@@ -176,7 +167,7 @@ async function fetchNearbyShopsOSM(lat, lng) {
   }
 }
 
-// Récupération initiale de tous les signalements
+// Récupération initiale des signalements
 async function fetchReports() {
   if (!supabaseClient) return;
 
@@ -194,7 +185,8 @@ async function fetchReports() {
   if (feedContainer) feedContainer.innerHTML = "";
 
   if (reports && reports.length > 0) {
-    reports.forEach((report) => {
+    // Inverser pour ajouter du plus ancien au plus récent avec `prepend`
+    reports.reverse().forEach((report) => {
       addReportToUI(report);
     });
   } else if (feedContainer) {
@@ -202,8 +194,15 @@ async function fetchReports() {
   }
 }
 
-// Ajouter un signalement sur la carte et dans le flux d'informations
+// Ajouter un signalement (anti-doublon strict carte & liste)
 function addReportToUI(report) {
+  const reportId = String(report.id || `${report.latitude}_${report.longitude}`);
+
+  // 1. SÉCURITÉ ANTI-DOUBLON : si déjà dans le DOM ou la carte, on stoppe
+  if (markersMap.has(reportId) || document.querySelector(`[data-report-id="${reportId}"]`)) {
+    return;
+  }
+
   const statusText = report.status === "Disponible" ? "🟢 En stock" : "🔴 En rupture";
   const formattedDate = new Date(report.created_at).toLocaleString("fr-FR", {
     day: "2-digit",
@@ -213,10 +212,9 @@ function addReportToUI(report) {
     minute: "2-digit"
   });
 
-  const reportId = report.id || `${report.latitude}_${report.longitude}`;
-  const addressText = report.address || "Adresse en cours de chargement...";
+  const addressText = report.address || "Adresse non disponible";
 
-  // 1. Marqueur sur la carte
+  // Marqueur sur la carte
   const marker = L.marker([report.latitude, report.longitude])
     .addTo(map)
     .bindPopup(`
@@ -229,7 +227,7 @@ function addReportToUI(report) {
 
   markersMap.set(reportId, marker);
 
-  // 2. Ajouter l'élément dans le flux de la page
+  // Ajouter à la liste UI
   const feedContainer = document.getElementById("reports-feed");
   if (feedContainer) {
     const emptyMsg = feedContainer.querySelector(".empty-feed");
@@ -237,6 +235,7 @@ function addReportToUI(report) {
 
     const item = document.createElement("div");
     item.className = `feed-item ${report.status === "Disponible" ? "disponible" : "rupture"}`;
+    item.setAttribute("data-report-id", reportId);
     item.style.cursor = "pointer";
     item.onclick = () => window.focusOnMapMarker(reportId, report.latitude, report.longitude);
 
@@ -244,7 +243,7 @@ function addReportToUI(report) {
       <div class="feed-details">
         <strong>${report.product_name} (${statusText})</strong>
         <span>🏬 <b>${report.store_name || "Commerce"}</b></span>
-        <span class="feed-address" id="addr-feed-${reportId}">📍 ${addressText} <i style="font-size: 0.75rem; color: #2563eb;">(Cliquer pour voir sur la carte)</i></span>
+        <span class="feed-address">📍 ${addressText} <i style="font-size: 0.75rem; color: #2563eb;">(Cliquer pour voir sur la carte)</i></span>
       </div>
       <div class="feed-time">🕒 ${formattedDate}</div>
     `;
@@ -253,7 +252,7 @@ function addReportToUI(report) {
   }
 }
 
-// Affichage de la notification flottante temporaire
+// Affichage notification
 function showInstantNotification(report) {
   const formattedDate = new Date(report.created_at).toLocaleString("fr-FR", {
     day: "2-digit",
@@ -262,7 +261,7 @@ function showInstantNotification(report) {
     minute: "2-digit"
   });
 
-  const reportId = report.id || `${report.latitude}_${report.longitude}`;
+  const reportId = String(report.id || `${report.latitude}_${report.longitude}`);
   const addressText = report.address || "Localisation enregistrée";
 
   const toast = document.createElement("div");
@@ -280,17 +279,21 @@ function showInstantNotification(report) {
 
   document.body.appendChild(toast);
 
-  // Supprime la notification au bout de 7 secondes
   setTimeout(() => {
     toast.remove();
   }, 7000);
 }
 
-// Écoute en temps réel des nouveaux signalements Supabase
+// Écoute Realtime unique
 function listenRealtimeReports() {
   if (!supabaseClient) return;
 
-  supabaseClient
+  // Si un canal existe déjà, on le détruit pour éviter les écoutes multiples
+  if (realtimeChannel) {
+    supabaseClient.removeChannel(realtimeChannel);
+  }
+
+  realtimeChannel = supabaseClient
     .channel("public:reports")
     .on(
       "postgres_changes",
@@ -304,9 +307,12 @@ function listenRealtimeReports() {
     .subscribe();
 }
 
-// Soumission d'un nouveau signalement
+// Soumission du formulaire avec désactivation anti double-clic
 async function handleReportSubmit(e) {
   e.preventDefault();
+
+  const submitBtn = e.target.querySelector("button[type='submit']");
+  if (submitBtn) submitBtn.disabled = true;
 
   const storeSelect = document.getElementById("store-select");
   const storeIndex = storeSelect ? storeSelect.value : "";
@@ -326,10 +332,10 @@ async function handleReportSubmit(e) {
 
   if (!supabaseClient) {
     alert("Problème d'initialisation de la base de données.");
+    if (submitBtn) submitBtn.disabled = false;
     return;
   }
 
-  // Obtenir l'adresse physique exacte à partir des coordonnées GPS
   const fetchedAddress = await getAddressFromCoords(reportLat, reportLng);
 
   const newRecord = {
@@ -341,20 +347,16 @@ async function handleReportSubmit(e) {
     longitude: reportLng
   };
 
-  const { data, error } = await supabaseClient
+  const { error } = await supabaseClient
     .from("reports")
-    .insert([newRecord])
-    .select();
+    .insert([newRecord]);
 
   if (error) {
     alert("Erreur lors de l'envoi du signalement.");
     console.error("Erreur Supabase insert:", error);
   } else {
     document.getElementById("report-form").reset();
-    
-    if (data && data.length > 0) {
-      addReportToUI(data[0]);
-      showInstantNotification(data[0]);
-    }
   }
+
+  if (submitBtn) submitBtn.disabled = false;
 }
