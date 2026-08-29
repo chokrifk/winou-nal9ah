@@ -87,7 +87,6 @@ function initMap() {
     const address = await getAddressFromCoords(lat, lng);
     document.getElementById("selected-custom-address").value = address;
 
-    // Mettre à jour le select pour indiquer le lieu personnalisé choisi
     const storeSelect = document.getElementById("store-select");
     if (storeSelect) {
       let customOpt = storeSelect.querySelector("option[value='custom_map_point']");
@@ -165,7 +164,7 @@ window.focusOnMapMarker = function(reportId, lat, lng) {
   document.getElementById("map")?.scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
-// Suivi d'utilisateurs en ligne avec simulation dynamique intelligente
+// Suivi d'utilisateurs en ligne avec simulation dynamique
 function initPresenceTracking() {
   if (!supabaseClient) return;
   presenceChannel = supabaseClient.channel("winou-presence-room", {
@@ -291,18 +290,18 @@ async function fetchReports() {
   renderMapMarkers();
 }
 
-// Moteur de Filtrage intelligent par Pills
-window.filterReports = function(status, btnEl) {
-  currentFilter = status;
-  document.querySelectorAll('.filter-pills .pill-btn').forEach(btn => btn.classList.remove('active'));
-  if (btnEl) btnEl.classList.add('active');
+// Filtrage par liste de produits
+window.handleListSearch = function(productName) {
+  currentSearchQuery = productName.toLowerCase().trim();
   renderReportsFeed();
   renderMapMarkers();
 };
 
-// Moteur de Recherche globale intelligente
-window.handleGlobalSearch = function(query) {
-  currentSearchQuery = query.toLowerCase().trim();
+// Filtrage par statuts (Pills)
+window.filterReports = function(status, btnEl) {
+  currentFilter = status;
+  document.querySelectorAll('.filter-pills .pill-btn').forEach(btn => btn.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
   renderReportsFeed();
   renderMapMarkers();
 };
@@ -323,7 +322,7 @@ function renderReportsFeed() {
   });
 
   if (filtered.length === 0) {
-    feedContainer.innerHTML = "<p style='color:#64748b; text-align:center; padding: 24px;'>Aucun signalement ne correspond à votre recherche.</p>";
+    feedContainer.innerHTML = "<p style='color:#64748b; text-align:center; padding: 24px;'>Aucun signalement ne correspond à votre sélection.</p>";
     return;
   }
 
@@ -359,7 +358,6 @@ function renderReportsFeed() {
 }
 
 function renderMapMarkers() {
-  // Nettoyer les anciens marqueurs de signalement
   markersMap.forEach(marker => map.removeLayer(marker));
   markersMap.clear();
 
@@ -509,7 +507,6 @@ async function handleReportSubmit(e) {
   let reportLat = userPos.lat;
   let reportLng = userPos.lng;
 
-  // Si l'utilisateur a cliqué sur la carte pour choisir un point précis
   if (storeIndex === "custom_map_point") {
     reportLat = parseFloat(document.getElementById("selected-lat").value) || userPos.lat;
     reportLng = parseFloat(document.getElementById("selected-lng").value) || userPos.lng;
@@ -553,3 +550,10 @@ async function handleReportSubmit(e) {
 
   if (submitBtn) submitBtn.disabled = false;
 }
+
+// Fonction pour l'assistant IA flottant
+window.openAIAssistantModal = function() {
+  const availableCount = allReportsData.filter(r => r.status === "Disponible").length;
+  const alertMsg = `🤖 Assistant IA Winou :\n\nActuellement, il y a ${allReportsData.length} signalements enregistrés sur le réseau dont ${availableCount} produits en stock.\n\n💡 Conseil : Utilisez le sélecteur de liste en haut à gauche pour filtrer instantanément un produit ou une station !`;
+  alert(alertMsg);
+};
