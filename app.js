@@ -6,7 +6,7 @@ let realtimeChannel = null;
 let realtimeSubscribed = false;
 
 let map;
-let userPos = { lat: 36.8065, lng: 10.1815 }; // Tunis par défaut
+let userPos = { lat: 36.8065, lng: 10.1815 }; // Tunis / Ariana par défaut
 let nearbyStores = [];
 
 const markersMap = new Map();
@@ -71,13 +71,13 @@ function initMap() {
           radius: 7
         }).addTo(map).bindPopup("Vous êtes ici");
 
-        fetchNearbyShopsOSM(userPos.lat, userPos.lng);
+        fetchNearbyShopsAndFuelOSM(userPos.lat, userPos.lng);
       },
-      () => fetchNearbyShopsOSM(userPos.lat, userPos.lng),
+      () => fetchNearbyShopsAndFuelOSM(userPos.lat, userPos.lng),
       { timeout: 8000 }
     );
   } else {
-    fetchNearbyShopsOSM(userPos.lat, userPos.lng);
+    fetchNearbyShopsAndFuelOSM(userPos.lat, userPos.lng);
   }
 }
 
@@ -110,19 +110,22 @@ window.focusOnMapMarker = function(reportId, lat, lng) {
   document.getElementById("map")?.scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
-async function fetchNearbyShopsOSM(lat, lng) {
+// RECHERCHE DES COMMERCES ET STATIONS-SERVICES
+async function fetchNearbyShopsAndFuelOSM(lat, lng) {
   const storeSelect = document.getElementById("store-select");
   if (!storeSelect) return;
 
   const query = `
     [out:json];
     (
-      node["shop"="supermarket"](around:2000, ${lat}, ${lng});
-      node["shop"="convenience"](around:2000, ${lat}, ${lng});
-      way["shop"="supermarket"](around:2000, ${lat}, ${lng});
-      way["shop"="convenience"](around:2000, ${lat}, ${lng});
+      node["shop"="supermarket"](around:3000, ${lat}, ${lng});
+      node["shop"="convenience"](around:3000, ${lat}, ${lng});
+      node["amenity"="fuel"](around:3000, ${lat}, ${lng});
+      way["shop"="supermarket"](around:3000, ${lat}, ${lng});
+      way["shop"="convenience"](around:3000, ${lat}, ${lng});
+      way["amenity"="fuel"](around:3000, ${lat}, ${lng});
     );
-    out center 20;
+    out center 30;
   `;
 
   try {
@@ -133,24 +136,28 @@ async function fetchNearbyShopsOSM(lat, lng) {
     nearbyStores = data.elements || [];
 
     if (nearbyStores.length === 0) {
-      storeSelect.innerHTML = "<option value=''>Épicerie de quartier / Position actuelle</option>";
+      storeSelect.innerHTML = "<option value=''>Station / Commerce de proximité</option>";
       return;
     }
 
     const defaultOpt = document.createElement("option");
     defaultOpt.value = "";
-    defaultOpt.textContent = "-- Sélectionner un commerce proche --";
+    defaultOpt.textContent = "-- Sélectionner une station ou commerce --";
     storeSelect.appendChild(defaultOpt);
 
     nearbyStores.forEach((store, index) => {
-      const name = store.tags.name || "Commerce de proximité";
+      const isFuel = store.tags.amenity === "fuel";
+      const defaultName = isFuel ? "Station-Service" : "Commerce de proximité";
+      const name = store.tags.name || store.tags.brand || defaultName;
+      const icon = isFuel ? "⛽ " : "🏬 ";
+
       const opt = document.createElement("option");
       opt.value = index;
-      opt.textContent = name;
+      opt.textContent = `${icon}${name}`;
       storeSelect.appendChild(opt);
     });
   } catch (err) {
-    storeSelect.innerHTML = "<option value=''>Épicerie de quartier (Saisie manuelle)</option>";
+    storeSelect.innerHTML = "<option value=''>Station / Commerce de proximité</option>";
   }
 }
 
@@ -201,8 +208,8 @@ function addReportToUI(report, isNew = true) {
       .addTo(map)
       .bindPopup(`
         <strong>${report.product_name}</strong> <span class="badge-status ${badgeClass}">${statusLabel}</span><br/>
-        🏬 <b>${report.store_name || "Commerce"}</b><br/>
-        📍 <small>${addressText}</small><br/>
+        📍 <b>${report.store_name || "Lieu"}</b><br/>
+        🏙️ <small>${addressText}</small><br/>
         🕒 <small>${formattedDate}</small>
       `);
     markersMap.set(reportId, marker);
@@ -218,8 +225,8 @@ function addReportToUI(report, isNew = true) {
     item.innerHTML = `
       <div class="feed-details">
         <strong>${report.product_name} <span class="badge-status ${badgeClass}">${statusLabel}</span></strong>
-        <span class="feed-store">🏬 ${report.store_name || "Commerce"}</span>
-        <span class="feed-address">📍 ${addressText}</span>
+        <span class="feed-store">📍 ${report.store_name || "Commerce / Station"}</span>
+        <span class="feed-address">🏙️ ${addressText}</span>
       </div>
       <div class="feed-time">🕒 ${formattedDate}</div>
     `;
@@ -241,7 +248,7 @@ function showInstantNotification(report) {
   toast.innerHTML = `
     <strong>🚨 Nouveau Signalement !</strong><br/>
     📦 <b>${report.product_name}</b> - ${report.status}<br/>
-    🏬 <small>${report.store_name || "Commerce"}</small>
+    📍 <small>${report.store_name || "Lieu"}</small>
   `;
 
   document.body.appendChild(toast);
@@ -295,13 +302,15 @@ async function handleReportSubmit(e) {
   const storeIndex = storeSelect ? storeSelect.value : "";
   const status = document.getElementById("status").value;
 
-  let storeName = "Épicerie de quartier";
+  let storeName = "Station / Commerce de proximité";
   let reportLat = userPos.lat;
   let reportLng = userPos.lng;
 
   if (storeIndex !== "" && nearbyStores[storeIndex]) {
     const selected = nearbyStores[storeIndex];
-    storeName = selected.tags.name || "Épicerie de quartier";
+    const isFuel = selected.tags.amenity === "fuel";
+    const defaultName = isFuel ? "Station-Service" : "Commerce de proximité";
+    storeName = selected.tags.name || selected.tags.brand || defaultName;
     reportLat = selected.lat || (selected.center && selected.center.lat) || userPos.lat;
     reportLng = selected.lon || (selected.center && selected.center.lon) || userPos.lng;
   }
