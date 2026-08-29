@@ -6,6 +6,7 @@ let supabaseClient = null;
 let map;
 let userPos = { lat: 36.8065, lng: 10.1815 }; // Position par défaut (Tunis)
 let nearbyStores = [];
+const markersMap = new Map(); // Stocke les marqueurs Leaflet pour pouvoir les cibler au clic
 
 // Initialisation au chargement du DOM
 document.addEventListener("DOMContentLoaded", () => {
@@ -81,7 +82,41 @@ function initMap() {
   }
 }
 
-// Recherche des commerces à proximité via l'API Overpass (OpenStreetMap)
+// Fonction utilitaire : Récupérer l'adresse lisible via Reverse Geocoding (Nominatim)
+async function getAddressFromCoords(lat, lng) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+    const data = await res.json();
+    if (data && data.address) {
+      const road = data.address.road || data.address.pedestrian || data.address.suburb || "";
+      const city = data.address.city || data.address.town || data.address.village || data.address.state || "";
+      const fullAddr = [road, city].filter(Boolean).join(", ");
+      return fullAddr || data.display_name.split(",")[0];
+    }
+  } catch (err) {
+    console.warn("Erreur récupération adresse:", err);
+  }
+  return "Adresse non disponible";
+}
+
+// Centre et zoome sur le marqueur correspondant au clic sur une notification/liste
+window.focusOnMapMarker = function(reportId, lat, lng) {
+  if (!map) return;
+  map.setView([lat, lng], 17, { animate: true });
+  
+  const marker = markersMap.get(reportId);
+  if (marker) {
+    marker.openPopup();
+  }
+  
+  // Fait défiler la page jusqu'à la carte si nécessaire
+  const mapElement = document.getElementById("map");
+  if (mapElement) {
+    mapElement.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+};
+
+// Recherche des commerces à proximité via l'API Overpass
 async function fetchNearbyShopsOSM(lat, lng) {
   const storeSelect = document.getElementById("store-select");
   if (!storeSelect) return;
@@ -160,7 +195,7 @@ async function fetchReports() {
 
   if (reports && reports.length > 0) {
     reports.forEach((report) => {
-      addReportToUI(report, false);
+      addReportToUI(report);
     });
   } else if (feedContainer) {
     feedContainer.innerHTML = "<p class='empty-feed'>Aucun signalement pour le moment.</p>";
@@ -168,7 +203,7 @@ async function fetchReports() {
 }
 
 // Ajouter un signalement sur la carte et dans le flux d'informations
-function addReportToUI(report, isNew = false) {
+function addReportToUI(report) {
   const statusText = report.status === "Disponible" ? "🟢 En stock" : "🔴 En rupture";
   const formattedDate = new Date(report.created_at).toLocaleString("fr-FR", {
     day: "2-digit",
@@ -178,29 +213,38 @@ function addReportToUI(report, isNew = false) {
     minute: "2-digit"
   });
 
-  // 1. Ajouter / Mettre à jour le marqueur sur la carte
-  L.marker([report.latitude, report.longitude])
+  const reportId = report.id || `${report.latitude}_${report.longitude}`;
+  const addressText = report.address || "Adresse en cours de chargement...";
+
+  // 1. Marqueur sur la carte
+  const marker = L.marker([report.latitude, report.longitude])
     .addTo(map)
     .bindPopup(`
       <strong>${report.product_name}</strong><br/>
-      🏬 ${report.store_name || "Commerce"}<br/>
+      🏬 <b>${report.store_name || "Commerce"}</b><br/>
+      📍 <small>${addressText}</small><br/>
       Statut : ${statusText}<br/>
       🕒 <small>Signalé le : ${formattedDate}</small>
     `);
 
-  // 2. Ajouter la ligne dans la liste des signalements
+  markersMap.set(reportId, marker);
+
+  // 2. Ajouter l'élément dans le flux de la page
   const feedContainer = document.getElementById("reports-feed");
   if (feedContainer) {
-    // Retirer le message "Aucun signalement" s'il existe
     const emptyMsg = feedContainer.querySelector(".empty-feed");
     if (emptyMsg) emptyMsg.remove();
 
     const item = document.createElement("div");
     item.className = `feed-item ${report.status === "Disponible" ? "disponible" : "rupture"}`;
+    item.style.cursor = "pointer";
+    item.onclick = () => window.focusOnMapMarker(reportId, report.latitude, report.longitude);
+
     item.innerHTML = `
       <div class="feed-details">
         <strong>${report.product_name} (${statusText})</strong>
-        <span>🏬 ${report.store_name || "Commerce"}</span>
+        <span>🏬 <b>${report.store_name || "Commerce"}</b></span>
+        <span class="feed-address" id="addr-feed-${reportId}">📍 ${addressText} <i style="font-size: 0.75rem; color: #2563eb;">(Cliquer pour voir sur la carte)</i></span>
       </div>
       <div class="feed-time">🕒 ${formattedDate}</div>
     `;
@@ -218,21 +262,28 @@ function showInstantNotification(report) {
     minute: "2-digit"
   });
 
+  const reportId = report.id || `${report.latitude}_${report.longitude}`;
+  const addressText = report.address || "Localisation enregistrée";
+
   const toast = document.createElement("div");
   toast.className = "toast-notification";
+  toast.style.cursor = "pointer";
+  toast.onclick = () => window.focusOnMapMarker(reportId, report.latitude, report.longitude);
+
   toast.innerHTML = `
     <strong>🚨 Nouveau Signalement Instantané !</strong><br/>
     📦 <b>${report.product_name}</b> - ${report.status === "Disponible" ? "🟢 En stock" : "🔴 En rupture"}<br/>
-    🏬 ${report.store_name || "Commerce"}<br/>
+    🏬 <b>${report.store_name || "Commerce"}</b><br/>
+    📍 <small>${addressText}</small> <u>(Voir sur la carte)</u><br/>
     🕒 <small>Signalé le : ${formattedDate}</small>
   `;
 
   document.body.appendChild(toast);
 
-  // Supprime la notification au bout de 5 secondes
+  // Supprime la notification au bout de 7 secondes
   setTimeout(() => {
     toast.remove();
-  }, 5000);
+  }, 7000);
 }
 
 // Écoute en temps réel des nouveaux signalements Supabase
@@ -246,7 +297,7 @@ function listenRealtimeReports() {
       { event: "INSERT", schema: "public", table: "reports" },
       (payload) => {
         const newReport = payload.new;
-        addReportToUI(newReport, true);
+        addReportToUI(newReport);
         showInstantNotification(newReport);
       }
     )
@@ -278,10 +329,14 @@ async function handleReportSubmit(e) {
     return;
   }
 
+  // Obtenir l'adresse physique exacte à partir des coordonnées GPS
+  const fetchedAddress = await getAddressFromCoords(reportLat, reportLng);
+
   const newRecord = {
     product_name: productName,
     status: status,
     store_name: storeName,
+    address: fetchedAddress,
     latitude: reportLat,
     longitude: reportLng
   };
@@ -297,9 +352,8 @@ async function handleReportSubmit(e) {
   } else {
     document.getElementById("report-form").reset();
     
-    // Si la souscription Realtime ne déclenche pas immédiatement, on rafraîchit localement
     if (data && data.length > 0) {
-      addReportToUI(data[0], true);
+      addReportToUI(data[0]);
       showInstantNotification(data[0]);
     }
   }
