@@ -110,7 +110,6 @@ window.focusOnMapMarker = function(reportId, lat, lng) {
   document.getElementById("map")?.scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
-// RECHERCHE DES COMMERCES ET STATIONS-SERVICES
 async function fetchNearbyShopsAndFuelOSM(lat, lng) {
   const storeSelect = document.getElementById("store-select");
   if (!storeSelect) return;
@@ -202,21 +201,32 @@ function addReportToUI(report, isNew = true) {
   });
 
   const addressText = report.address || "Adresse non renseignée";
+  const storeName = report.store_name || "Station / Commerce";
+  const productName = report.product_name || "Produit";
 
+  // Marqueur sur la carte avec le nom du produit ET de la station/commerce bien visibles
   if (!markersMap.has(reportId)) {
     const marker = L.marker([report.latitude, report.longitude])
       .addTo(map)
       .bindPopup(`
-        <strong>${report.product_name}</strong> <span class="badge-status ${badgeClass}">${statusLabel}</span><br/>
-        📍 <b>${report.store_name || "Lieu"}</b><br/>
-        🏙️ <small>${addressText}</small><br/>
-        🕒 <small>${formattedDate}</small>
+        <div style="font-family: inherit; line-height: 1.4;">
+          <b style="font-size: 1.05rem; color: #0f172a;">📦 ${productName}</b> <span class="badge-status ${badgeClass}">${statusLabel}</span><br/>
+          <span style="color: #0284c7; font-weight: 600;">📍 ${storeName}</span><br/>
+          <span style="color: #64748b; font-size: 0.85rem;">🏙️ ${addressText}</span><br/>
+          <span style="color: #94a3b8; font-size: 0.78rem;">🕒 ${formattedDate}</span>
+        </div>
       `);
     markersMap.set(reportId, marker);
   }
 
+  // Ajout dans la liste (Flux en direct) avec affichage explicite du produit ET de la station
   const feedContainer = document.getElementById("reports-feed");
   if (feedContainer) {
+    // Si c'était le message "Aucun signalement", on le retire
+    if (feedContainer.querySelector("p")) {
+      feedContainer.innerHTML = "";
+    }
+
     const item = document.createElement("div");
     item.className = `feed-item ${isDispo ? "disponible" : "rupture"}`;
     item.setAttribute("data-report-id", reportId);
@@ -224,8 +234,8 @@ function addReportToUI(report, isNew = true) {
 
     item.innerHTML = `
       <div class="feed-details">
-        <strong>${report.product_name} <span class="badge-status ${badgeClass}">${statusLabel}</span></strong>
-        <span class="feed-store">📍 ${report.store_name || "Commerce / Station"}</span>
+        <strong>📦 ${productName} <span class="badge-status ${badgeClass}">${statusLabel}</span></strong>
+        <span class="feed-store" style="color: #0284c7; font-weight: 600; margin-top: 2px; display: block;">📍 ${storeName}</span>
         <span class="feed-address">🏙️ ${addressText}</span>
       </div>
       <div class="feed-time">🕒 ${formattedDate}</div>
