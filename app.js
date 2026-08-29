@@ -177,9 +177,6 @@ function initPresenceTracking() {
 
       const countEl = document.getElementById("connected-users-count");
       if (countEl) countEl.textContent = totalOnline;
-
-      const statOnlineEl = document.getElementById("stat-online");
-      if (statOnlineEl) statOnlineEl.textContent = totalOnline;
     })
     .subscribe(async (status) => {
       if (status === "SUBSCRIBED") {
@@ -283,9 +280,27 @@ async function fetchReports() {
   if (error) return;
 
   allReportsData = reports || [];
-  updateStatsDashboard();
+  updateLiveStockTicker();
   renderReportsFeed();
   renderMapMarkers();
+}
+
+// Mise à jour du Flash Info avec les stocks réels
+function updateLiveStockTicker() {
+  const tickerEl = document.getElementById("live-stock-ticker");
+  if (!tickerEl) return;
+
+  if (allReportsData.length === 0) {
+    tickerEl.textContent = "⚡ Aucun signalement de stock récent pour le moment sur le réseau Win Nal9a 🇹🇳";
+    return;
+  }
+
+  const tickerMessages = allReportsData.map(r => {
+    const statusText = r.status === "Disponible" ? "🟢 En stock" : "🔴 En rupture";
+    return `📦 ${r.product_name} chez [${r.store_name || "Lieu"}] (${r.address || "Tunisie"}) ➔ ${statusText}`;
+  });
+
+  tickerEl.textContent = tickerMessages.join("   •   ");
 }
 
 window.handleListSearch = function(productName) {
@@ -402,44 +417,6 @@ function renderMapMarkers() {
   });
 }
 
-function updateStatsDashboard() {
-  const total = allReportsData.length;
-  const dispo = allReportsData.filter(r => r.status === "Disponible").length;
-  const rupture = allReportsData.filter(r => r.status === "Rupture").length;
-
-  document.getElementById("stat-total").textContent = total;
-  document.getElementById("stat-dispo").textContent = dispo;
-  document.getElementById("stat-rupture").textContent = rupture;
-
-  const regionEl = document.getElementById("stat-top-region");
-  if (regionEl) {
-    if (allReportsData.length === 0) {
-      regionEl.textContent = "Aucune donnée nationale";
-    } else {
-      const counts = {};
-      allReportsData.forEach(r => {
-        if (r.address) {
-          const parts = r.address.split(",");
-          const city = parts[parts.length - 1].trim();
-          if (city) {
-            counts[city] = (counts[city] || 0) + 1;
-          }
-        }
-      });
-
-      let topCity = "Grand Tunis / Ariana";
-      let maxCount = 0;
-      for (const [city, count] of Object.entries(counts)) {
-        if (count > maxCount) {
-          maxCount = count;
-          topCity = city;
-        }
-      }
-      regionEl.textContent = topCity;
-    }
-  }
-}
-
 function showToastNotification(text) {
   const toast = document.createElement("div");
   toast.className = "toast-notification";
@@ -467,7 +444,7 @@ function listenRealtimeReports() {
           if (!processedReportIds.has(reportId)) {
             processedReportIds.add(reportId);
             allReportsData.unshift(newReport);
-            updateStatsDashboard();
+            updateLiveStockTicker();
             renderReportsFeed();
             renderMapMarkers();
             showToastNotification(`🚨 Nouvelle alerte : <b>${newReport.product_name}</b> (${newReport.status})`);
@@ -547,10 +524,11 @@ async function handleReportSubmit(e) {
   if (submitBtn) submitBtn.disabled = false;
 }
 
-// Logique de l'Assistant IA Winou
+// Logique Assistant IA Style Claude/Gemini (Winou AI)
 window.openAIAssistantModal = function() {
   const modal = document.getElementById("ai-chat-modal");
   if (modal) modal.style.display = "flex";
+  document.getElementById("ai-user-input")?.focus();
 };
 
 window.closeAIAssistantModal = function() {
@@ -562,37 +540,55 @@ window.handleAIPressKey = function(e) {
   if (e.key === "Enter") sendAIMessage();
 };
 
+window.sendQuickPrompt = function(promptText) {
+  const inputEl = document.getElementById("ai-user-input");
+  if (inputEl) {
+    inputEl.value = promptText;
+    sendAIMessage();
+  }
+};
+
 window.sendAIMessage = function() {
   const inputEl = document.getElementById("ai-user-input");
   const messagesContainer = document.getElementById("ai-chat-messages");
   const query = inputEl.value.trim();
   if (!query) return;
 
-  messagesContainer.innerHTML += `<div class="ai-msg user">${escapeHtml(query)}</div>`;
+  // Affichage message utilisateur
+  messagesContainer.innerHTML += `
+    <div class="ai-msg user">
+      <div class="ai-bubble">${escapeHtml(query)}</div>
+    </div>`;
   inputEl.value = "";
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
+  // Simulation réponse IA style Claude / Gemini
   setTimeout(() => {
-    let botReply = "Je n'ai pas trouvé assez de détails, essayez de consulter le flux en direct.";
+    let botReply = "Je n'ai pas trouvé assez de précisions dans la base en direct. Essayez de reformuler votre demande.";
     const lowerQ = query.toLowerCase();
 
-    if (lowerQ.includes("lait") || lowerQ.includes("carburant") || lowerQ.includes("essence") || lowerQ.includes("eau") || lowerQ.includes("sucre") || lowerQ.includes("gasoil")) {
+    if (lowerQ.includes("lait") || lowerQ.includes("carburant") || lowerQ.includes("essence") || lowerQ.includes("eau") || lowerQ.includes("sucre") || lowerQ.includes("gasoil") || lowerQ.includes("trouver")) {
       const found = allReportsData.filter(r => r.product_name && lowerQ.includes(r.product_name.toLowerCase()) && r.status === "Disponible");
       if (found.length > 0) {
-        botReply = `✅ Oui ! J'ai trouvé ${found.length} signalement(s) en stock :\n` + found.map(f => `• ${f.product_name} chez ${f.store_name} (${f.address})`).join("\n");
+        botReply = `Voici les derniers signalements positifs en stock correspondants :\n\n` + found.map(f => `• **${f.product_name}** chez *${f.store_name}* (${f.address})`).join("\n");
       } else {
-        botReply = `❌ Désolé, aucun stock récent n'est actuellement signalé pour cette recherche. Pensez à publier une alerte si vous en trouvez !`;
+        botReply = `D'après les derniers rapports du réseau, aucun stock n'est actuellement confirmé pour cette recherche. N'hésitez pas à consulter la carte interactive ou à poster une alerte.`;
       }
-    } else if (lowerQ.includes("combien") || lowerQ.includes("total") || lowerQ.includes("stat")) {
+    } else if (lowerQ.includes("bilan") || lowerQ.includes("stat") || lowerQ.includes("combien")) {
       const dispoCount = allReportsData.filter(r => r.status === "Disponible").length;
-      botReply = `📊 Il y a actuellement ${allReportsData.length} signalements au total sur le réseau, dont ${dispoCount} produits disponibles.`;
+      const ruptureCount = allReportsData.filter(r => r.status === "Rupture").length;
+      botReply = `📊 **Bilan du réseau Win Nal9a 🇹🇳 :**\n- Total signalements actifs : **${allReportsData.length}**\n- Produits en stock : **${dispoCount}**\n- Produits en rupture : **${ruptureCount}**`;
     } else {
-      botReply = `💡 Astuce : Vous pouvez me demander si un produit spécifique (ex: "lait", "essence", "eau") est disponible, ou utiliser le filtre par liste en haut à gauche !`;
+      botReply = `💡 En tant qu'assistant Winou AI, je peux analyser pour vous la disponibilité du lait, du sucre, des carburants et des produits de première nécessité en Tunisie. Posez-moi une question précise sur un article !`;
     }
 
-    messagesContainer.innerHTML += `<div class="ai-msg bot">${escapeHtml(botReply).replace(/\n/g, '<br>')}</div>`;
+    messagesContainer.innerHTML += `
+      <div class="ai-msg bot">
+        <div class="ai-avatar">✨</div>
+        <div class="ai-bubble">${escapeHtml(botReply).replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>')}</div>
+      </div>`;
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
-  }, 500);
+  }, 600);
 };
 
 function escapeHtml(text) {
