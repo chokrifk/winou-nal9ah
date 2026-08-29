@@ -1,6 +1,6 @@
-// Config Supabase (Compte gratuit sur supabase.com)
-const SUPABASE_URL = "https://VOTRE_PROJET.supabase.co";
-const SUPABASE_KEY = "VOTRE_CLE_ANON";
+// Configuration Supabase
+const SUPABASE_URL = "https://iahzasnluqapwppclfmn.supabase.co";
+const SUPABASE_KEY = "sb_publishable_TIb7eyfTYz5x-DhexGOWDw_VkPja_E-";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let map;
@@ -12,9 +12,10 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function initMap() {
+  // Création de la carte Leaflet
   map = L.map("map").setView([userPos.lat, userPos.lng], 14);
 
-  // Fonds de carte gratuit OpenStreetMap
+  // Fond de carte gratuit OpenStreetMap
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "© OpenStreetMap"
@@ -30,7 +31,7 @@ function initMap() {
         };
         map.setView([userPos.lat, userPos.lng], 15);
 
-        // Marqueur bleu pour l'utilisateur
+        // Marqueur bleu pour la position actuelle
         L.circleMarker([userPos.lat, userPos.lng], {
           color: "#2563eb",
           fillColor: "#3b82f6",
@@ -52,7 +53,7 @@ function initMap() {
   }
 }
 
-// Recherche 100% GRATUITE des supermarchés et épiceries à proximité via Overpass API (OpenStreetMap)
+// Recherche des magasins proches via Overpass API (OpenStreetMap)
 async function fetchNearbyShopsOSM(lat, lng) {
   const storeSelect = document.getElementById("store-select");
   storeSelect.innerHTML = "<option value=''>Chargement des commerces proches...</option>";
@@ -79,7 +80,7 @@ async function fetchNearbyShopsOSM(lat, lng) {
     nearbyStores = data.elements || [];
 
     if (nearbyStores.length === 0) {
-      storeSelect.innerHTML = "<option value=''>Aucun magasin détecté (Position actuelle utilisée)</option>";
+      storeSelect.innerHTML = "<option value=''>Aucun magasin détecté (Position actuelle)</option>";
       return;
     }
 
@@ -94,7 +95,6 @@ async function fetchNearbyShopsOSM(lat, lng) {
       const storeLng = store.lon || (store.center && store.center.lon);
 
       if (storeLat && storeLng) {
-        // Ajouter un marqueur vert sur la carte pour chaque magasin
         L.marker([storeLat, storeLng])
           .addTo(map)
           .bindPopup(`🏬 <strong>${storeName}</strong>`);
@@ -107,11 +107,11 @@ async function fetchNearbyShopsOSM(lat, lng) {
     });
   } catch (err) {
     console.error("Erreur API Overpass :", err);
-    storeSelect.innerHTML = "<option value=''>Position actuelle (Saisie manuelle)</option>";
+    storeSelect.innerHTML = "<option value=''>Saisie manuelle basée sur la position</option>";
   }
 }
 
-// Récupération des signalements communautaires depuis Supabase
+// Récupération des signalements communautaires
 async function fetchReports() {
   const { data: reports, error } = await supabase
     .from("reports")
