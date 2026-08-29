@@ -12,14 +12,17 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function initMap() {
-  // Création de la carte Leaflet
   map = L.map("map").setView([userPos.lat, userPos.lng], 14);
 
-  // Fond de carte gratuit OpenStreetMap
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "© OpenStreetMap"
   }).addTo(map);
+
+  // Force le rendu de Leaflet si le container s'affiche après le JS
+  setTimeout(() => {
+    map.invalidateSize();
+  }, 300);
 
   // Géolocalisation automatique de l'utilisateur
   if ("geolocation" in navigator) {
