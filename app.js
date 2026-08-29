@@ -8,6 +8,7 @@ let map;
 let userPos = { lat: 36.8065, lng: 10.1815 }; // Position par défaut (Tunis)
 let nearbyStores = [];
 const markersMap = new Map(); // Stocke les marqueurs Leaflet
+const processedReportIds = new Set(); // SÉCURITÉ ANTI-DOUBLON STRICTE
 
 // Initialisation au chargement du DOM
 document.addEventListener("DOMContentLoaded", () => {
@@ -41,7 +42,7 @@ function initMap() {
     map.invalidateSize();
   }, 400);
 
-  // Charger les données initiales une seule fois
+  // Charger les signalements initiaux + démarrer l'écoute temps réel
   fetchReports();
   listenRealtimeReports();
 
@@ -91,7 +92,7 @@ async function getAddressFromCoords(lat, lng) {
   return "Adresse non disponible";
 }
 
-// Focus sur la carte
+// Focus et recentrage sur la carte au clic sur un élément de la liste
 window.focusOnMapMarker = function(reportId, lat, lng) {
   if (!map) return;
   map.setView([lat, lng], 17, { animate: true });
@@ -107,7 +108,7 @@ window.focusOnMapMarker = function(reportId, lat, lng) {
   }
 };
 
-// Recherche des commerces à proximité
+// Recherche des commerces à proximité (Overpass)
 async function fetchNearbyShopsOSM(lat, lng) {
   const storeSelect = document.getElementById("store-select");
   if (!storeSelect) return;
@@ -167,17 +168,17 @@ async function fetchNearbyShopsOSM(lat, lng) {
   }
 }
 
-// Récupération initiale des signalements
+// Récupération initiale des signalements (du plus récent au plus ancien)
 async function fetchReports() {
   if (!supabaseClient) return;
 
   const { data: reports, error } = await supabaseClient
     .from("reports")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false }); // Plus récent d'abord
 
   if (error) {
-    console.error("Erreur de lecture des signalements Supabase :", error);
+    console.error("Erreur de lecture Supabase :", error);
     return;
   }
 
@@ -185,23 +186,24 @@ async function fetchReports() {
   if (feedContainer) feedContainer.innerHTML = "";
 
   if (reports && reports.length > 0) {
-    // Inverser pour ajouter du plus ancien au plus récent avec `prepend`
-    reports.reverse().forEach((report) => {
-      addReportToUI(report);
+    // Pour afficher du plus récent au plus ancien avec appendChild
+    reports.forEach((report) => {
+      addReportToUI(report, false); // false = insérer à la fin lors du chargement initial
     });
   } else if (feedContainer) {
     feedContainer.innerHTML = "<p class='empty-feed'>Aucun signalement pour le moment.</p>";
   }
 }
 
-// Ajouter un signalement (anti-doublon strict carte & liste)
-function addReportToUI(report) {
-  const reportId = String(report.id || `${report.latitude}_${report.longitude}`);
+// Ajouter un signalement dans l'interface (Anti-doublon absolu)
+function addReportToUI(report, isNew = true) {
+  const reportId = String(report.id || `${report.latitude}_${report.longitude}_${report.created_at}`);
 
-  // 1. SÉCURITÉ ANTI-DOUBLON : si déjà dans le DOM ou la carte, on stoppe
-  if (markersMap.has(reportId) || document.querySelector(`[data-report-id="${reportId}"]`)) {
+  // SÉCURITÉ ANTI-DOUBLON ABSOLUE
+  if (processedReportIds.has(reportId)) {
     return;
   }
+  processedReportIds.add(reportId);
 
   const statusText = report.status === "Disponible" ? "🟢 En stock" : "🔴 En rupture";
   const formattedDate = new Date(report.created_at).toLocaleString("fr-FR", {
@@ -214,20 +216,22 @@ function addReportToUI(report) {
 
   const addressText = report.address || "Adresse non disponible";
 
-  // Marqueur sur la carte
-  const marker = L.marker([report.latitude, report.longitude])
-    .addTo(map)
-    .bindPopup(`
-      <strong>${report.product_name}</strong><br/>
-      🏬 <b>${report.store_name || "Commerce"}</b><br/>
-      📍 <small>${addressText}</small><br/>
-      Statut : ${statusText}<br/>
-      🕒 <small>Signalé le : ${formattedDate}</small>
-    `);
+  // 1. Ajouter le marqueur sur la carte s'il n'existe pas
+  if (!markersMap.has(reportId)) {
+    const marker = L.marker([report.latitude, report.longitude])
+      .addTo(map)
+      .bindPopup(`
+        <strong>${report.product_name}</strong><br/>
+        🏬 <b>${report.store_name || "Commerce"}</b><br/>
+        📍 <small>${addressText}</small><br/>
+        Statut : ${statusText}<br/>
+        🕒 <small>Signalé le : ${formattedDate}</small>
+      `);
 
-  markersMap.set(reportId, marker);
+    markersMap.set(reportId, marker);
+  }
 
-  // Ajouter à la liste UI
+  // 2. Ajouter l'élément dans le flux de la liste
   const feedContainer = document.getElementById("reports-feed");
   if (feedContainer) {
     const emptyMsg = feedContainer.querySelector(".empty-feed");
@@ -248,11 +252,17 @@ function addReportToUI(report) {
       <div class="feed-time">🕒 ${formattedDate}</div>
     `;
 
-    feedContainer.prepend(item);
+    if (isNew) {
+      // Les nouveaux signalements sont insérés EN HAUT de la liste
+      feedContainer.prepend(item);
+    } else {
+      // Chargement initial : ajout à la suite
+      feedContainer.appendChild(item);
+    }
   }
 }
 
-// Affichage notification
+// Notification temporaire en direct
 function showInstantNotification(report) {
   const formattedDate = new Date(report.created_at).toLocaleString("fr-FR", {
     day: "2-digit",
@@ -284,11 +294,10 @@ function showInstantNotification(report) {
   }, 7000);
 }
 
-// Écoute Realtime unique
+// Écoute des événements Realtime
 function listenRealtimeReports() {
   if (!supabaseClient) return;
 
-  // Si un canal existe déjà, on le détruit pour éviter les écoutes multiples
   if (realtimeChannel) {
     supabaseClient.removeChannel(realtimeChannel);
   }
@@ -300,14 +309,14 @@ function listenRealtimeReports() {
       { event: "INSERT", schema: "public", table: "reports" },
       (payload) => {
         const newReport = payload.new;
-        addReportToUI(newReport);
+        addReportToUI(newReport, true); // true = placer tout en haut
         showInstantNotification(newReport);
       }
     )
     .subscribe();
 }
 
-// Soumission du formulaire avec désactivation anti double-clic
+// Envoi d'un nouveau signalement
 async function handleReportSubmit(e) {
   e.preventDefault();
 
@@ -347,15 +356,21 @@ async function handleReportSubmit(e) {
     longitude: reportLng
   };
 
-  const { error } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from("reports")
-    .insert([newRecord]);
+    .insert([newRecord])
+    .select();
 
   if (error) {
     alert("Erreur lors de l'envoi du signalement.");
     console.error("Erreur Supabase insert:", error);
   } else {
     document.getElementById("report-form").reset();
+
+    // Ajoute immédiatement à l'interface le retour de Supabase (en haut de liste)
+    if (data && data.length > 0) {
+      addReportToUI(data[0], true);
+    }
   }
 
   if (submitBtn) submitBtn.disabled = false;
