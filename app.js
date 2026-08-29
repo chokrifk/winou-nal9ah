@@ -63,7 +63,6 @@ function initMap() {
 
   osmMarkersGroup.addTo(map);
 
-  // Interaction intelligente : Cliquer sur la carte permet de cibler un nouvel emplacement
   map.on("click", async (e) => {
     const lat = e.latlng.lat;
     const lng = e.latlng.lng;
@@ -164,7 +163,6 @@ window.focusOnMapMarker = function(reportId, lat, lng) {
   document.getElementById("map")?.scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
-// Suivi d'utilisateurs en ligne avec simulation dynamique
 function initPresenceTracking() {
   if (!supabaseClient) return;
   presenceChannel = supabaseClient.channel("winou-presence-room", {
@@ -290,14 +288,12 @@ async function fetchReports() {
   renderMapMarkers();
 }
 
-// Filtrage par liste de produits
 window.handleListSearch = function(productName) {
   currentSearchQuery = productName.toLowerCase().trim();
   renderReportsFeed();
   renderMapMarkers();
 };
 
-// Filtrage par statuts (Pills)
 window.filterReports = function(status, btnEl) {
   currentFilter = status;
   document.querySelectorAll('.filter-pills .pill-btn').forEach(btn => btn.classList.remove('active'));
@@ -551,9 +547,55 @@ async function handleReportSubmit(e) {
   if (submitBtn) submitBtn.disabled = false;
 }
 
-// Fonction pour l'assistant IA flottant
+// Logique de l'Assistant IA Winou
 window.openAIAssistantModal = function() {
-  const availableCount = allReportsData.filter(r => r.status === "Disponible").length;
-  const alertMsg = `🤖 Assistant IA Winou :\n\nActuellement, il y a ${allReportsData.length} signalements enregistrés sur le réseau dont ${availableCount} produits en stock.\n\n💡 Conseil : Utilisez le sélecteur de liste en haut à gauche pour filtrer instantanément un produit ou une station !`;
-  alert(alertMsg);
+  const modal = document.getElementById("ai-chat-modal");
+  if (modal) modal.style.display = "flex";
 };
+
+window.closeAIAssistantModal = function() {
+  const modal = document.getElementById("ai-chat-modal");
+  if (modal) modal.style.display = "none";
+};
+
+window.handleAIPressKey = function(e) {
+  if (e.key === "Enter") sendAIMessage();
+};
+
+window.sendAIMessage = function() {
+  const inputEl = document.getElementById("ai-user-input");
+  const messagesContainer = document.getElementById("ai-chat-messages");
+  const query = inputEl.value.trim();
+  if (!query) return;
+
+  messagesContainer.innerHTML += `<div class="ai-msg user">${escapeHtml(query)}</div>`;
+  inputEl.value = "";
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+  setTimeout(() => {
+    let botReply = "Je n'ai pas trouvé assez de détails, essayez de consulter le flux en direct.";
+    const lowerQ = query.toLowerCase();
+
+    if (lowerQ.includes("lait") || lowerQ.includes("carburant") || lowerQ.includes("essence") || lowerQ.includes("eau") || lowerQ.includes("sucre") || lowerQ.includes("gasoil")) {
+      const found = allReportsData.filter(r => r.product_name && lowerQ.includes(r.product_name.toLowerCase()) && r.status === "Disponible");
+      if (found.length > 0) {
+        botReply = `✅ Oui ! J'ai trouvé ${found.length} signalement(s) en stock :\n` + found.map(f => `• ${f.product_name} chez ${f.store_name} (${f.address})`).join("\n");
+      } else {
+        botReply = `❌ Désolé, aucun stock récent n'est actuellement signalé pour cette recherche. Pensez à publier une alerte si vous en trouvez !`;
+      }
+    } else if (lowerQ.includes("combien") || lowerQ.includes("total") || lowerQ.includes("stat")) {
+      const dispoCount = allReportsData.filter(r => r.status === "Disponible").length;
+      botReply = `📊 Il y a actuellement ${allReportsData.length} signalements au total sur le réseau, dont ${dispoCount} produits disponibles.`;
+    } else {
+      botReply = `💡 Astuce : Vous pouvez me demander si un produit spécifique (ex: "lait", "essence", "eau") est disponible, ou utiliser le filtre par liste en haut à gauche !`;
+    }
+
+    messagesContainer.innerHTML += `<div class="ai-msg bot">${escapeHtml(botReply).replace(/\n/g, '<br>')}</div>`;
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }, 500);
+};
+
+function escapeHtml(text) {
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
