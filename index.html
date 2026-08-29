@@ -3,73 +3,82 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Winou Nal9ah?</title>
+  <title>Signalement Disponibilité Produits</title>
   
-  <!-- Leaflet CSS (Gratuit) -->
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Styles personnalisés -->
   <link rel="stylesheet" href="style.css" />
-  <link rel="manifest" href="./manifest.json" />
-  <meta name="theme-color" content="#2563eb" />
 </head>
 <body>
 
   <header class="app-header">
-    <h1>Winou Nal9ah? 📍</h1>
-    <p>Signalement collaboratif de produits & commerces de proximité</p>
+    <h1>🛒 Disponibilité en Direct</h1>
+    <p>Signalez et trouvez les produits disponibles dans vos commerces de proximité</p>
   </header>
 
-  <main id="map-container">
-    <div id="map"></div>
+  <main class="main-container">
+    
+    <!-- Colonne de gauche : Formulaire & Carte -->
+    <section class="left-column">
+      
+      <div class="card-panel">
+        <h2 class="card-title">📝 Publier un signalement</h2>
+        <form id="report-form">
+          <div class="form-group">
+            <label for="product-name">Produit</label>
+            <input type="text" id="product-name" class="form-control" placeholder="Ex: Lait, Eau minérale, Sucre..." required />
+          </div>
+
+          <div class="form-group">
+            <label for="status">État du stock</label>
+            <select id="status" class="form-control" required>
+              <option value="Disponible">🟢 En stock</option>
+              <option value="Rupture">🔴 En rupture</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="store-select">Magasin / Commerce</label>
+            <select id="store-select" class="form-control">
+              <option value="">Recherche des commerces proches...</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn-submit">Publier le signalement</button>
+        </form>
+      </div>
+
+      <div class="map-wrapper">
+        <button class="btn-locate" onclick="recenterMap()">🎯 Ma position</button>
+        <div id="map"></div>
+      </div>
+
+    </section>
+
+    <!-- Colonne de droite : Flux en direct -->
+    <section class="right-column">
+      <div class="card-panel">
+        <div class="feed-header">
+          <h2 class="card-title" style="margin-bottom:0;">Derniers signalements</h2>
+          <span class="live-badge">
+            <span class="live-pulse"></span> EN DIRECT
+          </span>
+        </div>
+        
+        <div id="reports-feed" class="feed-list">
+          <!-- Les signalements s'affichent ici -->
+        </div>
+      </div>
+    </section>
+
   </main>
 
-  <section class="report-panel">
-    <h3>Signaler un produit dans un commerce</h3>
-    <form id="report-form" onsubmit="handleReportSubmit(event)">
-      <div class="input-group">
-        <label for="store-select">Magasin / Épicerie à proximité :</label>
-        <select id="store-select" required>
-          <option value="">Recherche des commerces proches...</option>
-        </select>
-      </div>
-
-      <div class="input-group">
-        <label for="product-name">Produit :</label>
-        <select id="product-name" required>
-          <option value="">-- Sélectionner un produit --</option>
-          <option value="Eau minérale">Eau minérale</option>
-          <option value="Lait">Lait</option>
-          <option value="Sucre">Sucre</option>
-          <option value="Farine">Farine</option>
-          <option value="Huile d'olive">Huile d'olive</option>
-          <option value="Autre">Autre</option>
-        </select>
-      </div>
-
-      <div class="input-group">
-        <label for="status">Disponibilité :</label>
-        <select id="status" required>
-          <option value="Disponible">🟢 En stock</option>
-          <option value="Rupture">🔴 En rupture</option>
-        </select>
-      </div>
-
-      <button type="submit" class="submit-btn">Publier le signalement</button>
-    </form>
-  </section>
-<!-- Liste des derniers signalements sur le site -->
-  <section class="live-feed-panel">
-    <h3>Derniers signalements en direct 🔔</h3>
-    <div id="reports-feed">
-      <p class="empty-feed">Chargement des signalements...</p>
-    </div>
-  </section>
-  <footer class="app-footer">
-    <p>Powered by Choco</p>
-  </footer>
-
-  <!-- Leaflet & Supabase CDN (Gratuits) -->
+  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Supabase JS -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <!-- Application JS -->
   <script src="app.js"></script>
 </body>
 </html>
