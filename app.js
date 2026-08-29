@@ -1,31 +1,45 @@
-// Configuration Supabase
+// Configuration des clés
 const SUPABASE_URL = "https://iahzasnluqapwppclfmn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_TIb7eyfTYz5x-DhexGOWDw_VkPja_E-";
-// Utilisation d'un nom de variable unique pour éviter le conflit
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+let supabaseClient = null;
 let map;
-let userPos = { lat: 36.8065, lng: 10.1815 }; // Position par défaut (Tunis)
+let userPos = { lat: 36.8065, lng: 10.1815 }; // Tunis par défaut
 let nearbyStores = [];
 
+// Initialisation au chargement de la page
 document.addEventListener("DOMContentLoaded", () => {
+  // Initialisation sécurisée de Supabase
+  try {
+    if (window.supabase && window.supabase.createClient) {
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: { persistSession: false }
+      });
+    }
+  } catch (err) {
+    console.warn("Connexion Supabase en mode fallback:", err);
+  }
+
+  // Lancement de la carte Leaflet
   initMap();
 });
 
 function initMap() {
+  // 1. Déclarer la carte
   map = L.map("map").setView([userPos.lat, userPos.lng], 14);
 
+  // 2. Ajouter les tuiles OpenStreetMap
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "© OpenStreetMap"
   }).addTo(map);
 
-  // Force le rendu de Leaflet si le container s'affiche après le JS
+  // Force le rendu d'affichage de la carte
   setTimeout(() => {
     map.invalidateSize();
-  }, 300);
+  }, 400);
 
-  // Géolocalisation automatique de l'utilisateur
+  // 3. Géolocalisation utilisateur
   if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -35,7 +49,6 @@ function initMap() {
         };
         map.setView([userPos.lat, userPos.lng], 15);
 
-        // Marqueur bleu pour la position actuelle
         L.circleMarker([userPos.lat, userPos.lng], {
           color: "#2563eb",
           fillColor: "#3b82f6",
@@ -46,10 +59,12 @@ function initMap() {
         fetchNearbyShopsOSM(userPos.lat, userPos.lng);
         fetchReports();
       },
-      () => {
+      (err) => {
+        console.warn("GPS non activé ou refusé, utilisation position par défaut.");
         fetchNearbyShopsOSM(userPos.lat, userPos.lng);
         fetchReports();
-      }
+      },
+      { timeout: 10000 }
     );
   } else {
     fetchNearbyShopsOSM(userPos.lat, userPos.lng);
@@ -57,7 +72,7 @@ function initMap() {
   }
 }
 
-// Recherche des magasins proches via Overpass API (OpenStreetMap)
+// Recherche des magasins via l'API gratuite Overpass
 async function fetchNearbyShopsOSM(lat, lng) {
   const storeSelect = document.getElementById("store-select");
   storeSelect.innerHTML = "<option value=''>Chargement des commerces proches...</option>";
@@ -65,12 +80,12 @@ async function fetchNearbyShopsOSM(lat, lng) {
   const query = `
     [out:json];
     (
-      node["shop"="supermarket"](around:1500, ${lat}, ${lng});
-      node["shop"="convenience"](around:1500, ${lat}, ${lng});
-      way["shop"="supermarket"](around:1500, ${lat}, ${lng});
-      way["shop"="convenience"](around:1500, ${lat}, ${lng});
+      node["shop"="supermarket"](around:2000, ${lat}, ${lng});
+      node["shop"="convenience"](around:2000, ${lat}, ${lng});
+      way["shop"="supermarket"](around:2000, ${lat}, ${lng});
+      way["shop"="convenience"](around:2000, ${lat}, ${lng});
     );
-    out center 15;
+    out center 20;
   `;
 
   try {
@@ -84,7 +99,7 @@ async function fetchNearbyShopsOSM(lat, lng) {
     nearbyStores = data.elements || [];
 
     if (nearbyStores.length === 0) {
-      storeSelect.innerHTML = "<option value=''>Aucun magasin détecté (Position actuelle)</option>";
+      storeSelect.innerHTML = "<option value=''>Aucun magasin détecté (Position actuelle utilisée)</option>";
       return;
     }
 
@@ -111,13 +126,15 @@ async function fetchNearbyShopsOSM(lat, lng) {
     });
   } catch (err) {
     console.error("Erreur API Overpass :", err);
-    storeSelect.innerHTML = "<option value=''>Saisie manuelle basée sur la position</option>";
+    storeSelect.innerHTML = "<option value=''>Position actuelle (Saisie manuelle)</option>";
   }
 }
 
-// Récupération des signalements communautaires
+// Récupération des signalements
 async function fetchReports() {
-  const { data: reports, error } = await supabase
+  if (!supabaseClient) return;
+
+  const { data: reports, error } = await supabaseClient
     .from("reports")
     .select("*")
     .order("created_at", { ascending: false });
@@ -127,21 +144,23 @@ async function fetchReports() {
     return;
   }
 
-  reports.forEach((report) => {
-    const statusText = report.status === "Disponible" ? "🟢 En stock" : "🔴 En rupture";
-    
-    L.marker([report.latitude, report.longitude])
-      .addTo(map)
-      .bindPopup(`
-        <strong>${report.product_name}</strong><br/>
-        🏬 ${report.store_name || "Commerce"}<br/>
-        Statut : ${statusText}<br/>
-        <small>${new Date(report.created_at).toLocaleString()}</small>
-      `);
-  });
+  if (reports) {
+    reports.forEach((report) => {
+      const statusText = report.status === "Disponible" ? "🟢 En stock" : "🔴 En rupture";
+      
+      L.marker([report.latitude, report.longitude])
+        .addTo(map)
+        .bindPopup(`
+          <strong>${report.product_name}</strong><br/>
+          🏬 ${report.store_name || "Commerce"}<br/>
+          Statut : ${statusText}<br/>
+          <small>${new Date(report.created_at).toLocaleString()}</small>
+        `);
+    });
+  }
 }
 
-// Publication d'un nouveau signalement
+// Envoi du formulaire
 async function handleReportSubmit(e) {
   e.preventDefault();
 
@@ -160,7 +179,12 @@ async function handleReportSubmit(e) {
     reportLng = selected.lon || (selected.center && selected.center.lon) || userPos.lng;
   }
 
-  const { error } = await supabase.from("reports").insert([
+  if (!supabaseClient) {
+    alert("Problème de connexion à la base de données.");
+    return;
+  }
+
+  const { error } = await supabaseClient.from("reports").insert([
     {
       product_name: productName,
       status: status,
