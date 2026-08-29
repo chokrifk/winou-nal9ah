@@ -12,6 +12,16 @@
 </head>
 <body>
 
+  <!-- Bandeau Live Info / Flash Actu (Style Mosaique) en haut ou en bas -->
+  <div class="live-ticker-banner">
+    <div class="ticker-label">🔴 Flash Info Live</div>
+    <div class="ticker-content">
+      <marquee behavior="scroll" direction="left" scrollamount="5">
+        ⚡ Suivi en temps réel des stocks et carburants en Tunisie • Restez connectés pour ne rien rater des arrivages • Partagez vos signalements pour aider la communauté 🇹🇳
+      </marquee>
+    </div>
+  </div>
+
   <!-- En-tête du site -->
   <header class="app-header">
     <div class="header-top">
@@ -34,30 +44,47 @@
 
   <main class="main-container">
     
-    <!-- Colonne de gauche : Formulaire & Rapport intelligent -->
+    <!-- Colonne de gauche -->
     <section class="left-column">
       
-      <!-- Barre de recherche rapide globale -->
+      <!-- Recherche par LISTE (Sélecteur direct au lieu de saisie manuelle) -->
       <div class="card-panel search-panel-box">
-        <div class="search-bar-wrapper">
-          <span class="search-icon">🔍</span>
-          <input type="text" id="global-search-input" class="form-control" placeholder="Rechercher un produit, une station..." oninput="handleGlobalSearch(this.value)">
+        <h2 class="card-title" style="font-size: 0.95rem; margin-bottom: 10px;">🔍 Filtrer par liste de produits</h2>
+        <div class="form-group" style="margin-bottom: 8px;">
+          <select id="list-filter-select" class="form-control" onchange="handleListSearch(this.value)">
+            <option value="">🌐 Tous les produits et carburants</option>
+            <optgroup label="⛽ Carburants">
+              <option value="Essence Sans Plomb">Essence Sans Plomb</option>
+              <option value="Gasoil / Diesel">Gasoil / Diesel</option>
+              <option value="Gasoil 50">Gasoil 50</option>
+              <option value="Bouteille de gaz">Bouteille de gaz</option>
+            </optgroup>
+            <optgroup label="🛒 Alimentation & Produits">
+              <option value="Eau minérale">Eau minérale</option>
+              <option value="Lait">Lait</option>
+              <option value="Sucre">Sucre</option>
+              <option value="Farine">Farine</option>
+              <option value="Huile d'olive">Huile d'olive</option>
+              <option value="Huile végétale">Huile végétale</option>
+              <option value="Pâtes / Riz">Pâtes / Riz</option>
+              <option value="Café">Café</option>
+            </optgroup>
+          </select>
         </div>
-        <!-- Filtres rapides interactifs -->
+        <!-- Filtres rapides par statut -->
         <div class="filter-pills">
-          <button class="pill-btn active" onclick="filterReports('all', this)">🌐 Tous</button>
+          <button class="pill-btn active" onclick="filterReports('all', this)">🌐 Tout voir</button>
           <button class="pill-btn" onclick="filterReports('Disponible', this)">🟢 En stock</button>
           <button class="pill-btn" onclick="filterReports('Rupture', this)">🔴 En rupture</button>
         </div>
       </div>
 
-      <!-- Formulaire de signalement intelligent -->
+      <!-- Formulaire de signalement -->
       <div class="card-panel">
-        <h2 class="card-title">⚡ Publier un signalement intelligent</h2>
+        <h2 class="card-title">⚡ Publier un signalement</h2>
         <form id="report-form">
-          
           <div class="form-group">
-            <label for="product-select">Produit / Carburant recherché</label>
+            <label for="product-select">Produit / Carburant</label>
             <select id="product-select" class="form-control" onchange="toggleCustomProductInput(this)" required>
               <option value="" disabled selected>-- Sélectionnez une catégorie --</option>
               <optgroup label="⛽ Carburants & Énergie">
@@ -96,28 +123,27 @@
           </div>
 
           <div class="form-group">
-            <label for="store-select">Lieu / Commerce / Station (Détecté autour de vous)</label>
+            <label for="store-select">Lieu / Commerce / Station</label>
             <select id="store-select" class="form-control" required>
               <option value="">🔄 Analyse de votre position géographique...</option>
             </select>
           </div>
 
-          <!-- Champ caché pour la position interactive sélectionnée sur la carte -->
           <input type="hidden" id="selected-lat">
           <input type="hidden" id="selected-lng">
           <input type="hidden" id="selected-custom-address">
 
           <div class="map-hint-box">
-            💡 <i>Astuce : Vous pouvez aussi cliquer directement sur la carte interactive pour pointer un emplacement précis !</i>
+            💡 <i>Astuce : Cliquez directement sur la carte pour pointer un lieu précis.</i>
           </div>
 
-          <button type="submit" class="btn-submit">🚀 Diffuser l'alerte en direct</button>
+          <button type="submit" class="btn-submit">🚀 Diffuser l'alerte</button>
         </form>
       </div>
 
-      <!-- Rapport Statistique Live -->
+      <!-- Statistiques -->
       <div class="card-panel stats-panel">
-        <h2 class="card-title">📊 Synthèse nationale en direct</h2>
+        <h2 class="card-title">📊 Synthèse nationale</h2>
         <div class="stats-grid">
           <div class="stat-box">
             <span class="stat-num" id="stat-total">0</span>
@@ -143,7 +169,7 @@
 
     </section>
 
-    <!-- Colonne de droite : Carte Interactive & Flux Intelligent -->
+    <!-- Colonne de droite -->
     <section class="right-column">
       
       <div class="map-wrapper">
@@ -161,15 +187,20 @@
         </div>
         
         <div id="reports-feed" class="feed-list">
-          <p style="color:#64748b; text-align:center; padding: 20px;">Chargement des données géo-localisées...</p>
+          <p style="color:#64748b; text-align:center; padding: 20px;">Chargement des données...</p>
         </div>
       </div>
     </section>
 
   </main>
 
+  <!-- Bouton Flottant Assistant IA -->
+  <div class="ai-floating-assistant" onclick="openAIAssistantModal()">
+    🤖 Assistant IA Winou
+  </div>
+
   <footer class="app-footer">
-    <p>Win Nal9a Engine v3.0 • Powered by <strong>Choco</strong> 🇹🇳</p>
+    <p>Win Nal9a Engine v3.1 • Powered by <strong>Choco</strong> 🇹🇳</p>
   </footer>
 
   <!-- Leaflet JS -->
