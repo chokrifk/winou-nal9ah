@@ -8,9 +8,12 @@ let presenceChannel = null;
 let realtimeSubscribed = false;
 
 let map;
-let userPos = { lat: 36.8065, lng: 10.1815 }; // Ariana / Tunis par défaut (évite le blocage PC)
+let userPos = { lat: 36.8065, lng: 10.1815 }; // Ariana / Tunis par défaut
 let nearbyStores = [];
 let allReportsData = [];
+let currentFilter = 'all';
+let currentSearchQuery = '';
+let interactivePinMarker = null;
 
 const markersMap = new Map();
 const osmMarkersGroup = L.layerGroup();
@@ -24,7 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
   } catch (err) {
-    console.warn("Supabase error:", err);
+    console.warn("Supabase init error:", err);
   }
 
   const reportForm = document.getElementById("report-form");
@@ -55,17 +58,54 @@ function initMap() {
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
-    attribution: "© OpenStreetMap"
+    attribution: "© OpenStreetMap contributors"
   }).addTo(map);
 
   osmMarkersGroup.addTo(map);
+
+  map.on("click", async (e) => {
+    const lat = e.latlng.lat;
+    const lng = e.latlng.lng;
+    
+    document.getElementById("selected-lat").value = lat;
+    document.getElementById("selected-lng").value = lng;
+
+    if (interactivePinMarker) {
+      map.removeLayer(interactivePinMarker);
+    }
+
+    interactivePinMarker = L.marker([lat, lng], {
+      icon: L.divIcon({
+        className: 'interactive-target-pin',
+        html: `<div style="background:#2563eb; color:white; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; box-shadow:0 0 10px rgba(37,99,235,0.7); border:2px solid white;">📍</div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      })
+    }).addTo(map);
+
+    const address = await getAddressFromCoords(lat, lng);
+    document.getElementById("selected-custom-address").value = address;
+
+    const storeSelect = document.getElementById("store-select");
+    if (storeSelect) {
+      let customOpt = storeSelect.querySelector("option[value='custom_map_point']");
+      if (!customOpt) {
+        customOpt = document.createElement("option");
+        customOpt.value = "custom_map_point";
+        storeSelect.insertBefore(customOpt, storeSelect.firstChild);
+      }
+      customOpt.textContent = `🎯 Point personnalisé : ${address}`;
+      storeSelect.value = "custom_map_point";
+    }
+
+    showToastNotification("🎯 Lieu épinglé sur la carte avec succès !");
+  });
 
   setTimeout(() => { map.invalidateSize(); }, 400);
 
   fetchReports();
   listenRealtimeReports();
 
-  // Géolocalisation compatible PC et Mobile
   if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -76,13 +116,14 @@ function initMap() {
           color: "#2563eb",
           fillColor: "#3b82f6",
           fillOpacity: 0.8,
-          radius: 7
-        }).addTo(map).bindPopup("Vous êtes ici");
+          radius: 8,
+          weight: 2
+        }).addTo(map).bindPopup("<b>📍 Vous êtes ici (GPS)</b>");
 
         fetchNearbyShopsAndFuelOSM(userPos.lat, userPos.lng);
       },
       (err) => {
-        console.warn("Géolocalisation refusée ou indisponible sur PC, utilisation de la position par défaut.", err);
+        console.warn("Géolocalisation refusée, utilisation Ariana/Tunis par défaut.", err);
         fetchNearbyShopsAndFuelOSM(userPos.lat, userPos.lng);
       },
       { timeout: 10000, enableHighAccuracy: false }
@@ -95,6 +136,7 @@ function initMap() {
 window.recenterMap = function() {
   if (map && userPos) {
     map.setView([userPos.lat, userPos.lng], 15, { animate: true });
+    showToastNotification("🎯 Recentré sur votre position GPS");
   }
 };
 
@@ -108,9 +150,9 @@ async function getAddressFromCoords(lat, lng) {
       return [road, city].filter(Boolean).join(", ") || data.display_name.split(",")[0];
     }
   } catch (err) {
-    console.warn("Adresse indisponible:", err);
+    console.warn("Reverse geocode err:", err);
   }
-  return "Localisation enregistrée";
+  return "Tunisie (Lieu sélectionné)";
 }
 
 window.focusOnMapMarker = function(reportId, lat, lng) {
@@ -121,10 +163,9 @@ window.focusOnMapMarker = function(reportId, lat, lng) {
   document.getElementById("map")?.scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
-// Suivi des utilisateurs en direct à partir de 2903
 function initPresenceTracking() {
   if (!supabaseClient) return;
-  presenceChannel = supabaseClient.channel("online-users-room", {
+  presenceChannel = supabaseClient.channel("winou-presence-room", {
     config: { presence: { key: "user_" + Math.random().toString(36).substring(2, 9) } }
   });
 
@@ -136,9 +177,6 @@ function initPresenceTracking() {
 
       const countEl = document.getElementById("connected-users-count");
       if (countEl) countEl.textContent = totalOnline;
-
-      const statOnlineEl = document.getElementById("stat-online");
-      if (statOnlineEl) statOnlineEl.textContent = totalOnline;
     })
     .subscribe(async (status) => {
       if (status === "SUBSCRIBED") {
@@ -147,7 +185,6 @@ function initPresenceTracking() {
     });
 }
 
-// Sélection automatique du commerce depuis la carte
 window.selectStoreFromMap = function(index) {
   const storeSelect = document.getElementById("store-select");
   if (storeSelect) {
@@ -187,14 +224,9 @@ async function fetchNearbyShopsAndFuelOSM(lat, lng) {
     osmMarkersGroup.clearLayers();
     nearbyStores = data.elements || [];
 
-    if (nearbyStores.length === 0) {
-      storeSelect.innerHTML = "<option value=''>Station / Commerce de proximité</option>";
-      return;
-    }
-
     const defaultOpt = document.createElement("option");
     defaultOpt.value = "";
-    defaultOpt.textContent = "-- Sélectionner une station ou commerce --";
+    defaultOpt.textContent = nearbyStores.length > 0 ? "-- Sélectionnez un commerce ou station --" : "Aucun commerce détecté à proximité";
     storeSelect.appendChild(defaultOpt);
 
     nearbyStores.forEach((store, index) => {
@@ -215,7 +247,7 @@ async function fetchNearbyShopsAndFuelOSM(lat, lng) {
         const markerColor = isFuel ? "#f97316" : "#0ea5e9";
         const pinIcon = L.divIcon({
           className: 'custom-osm-pin',
-          html: `<div style="background-color: ${markerColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); white-space: nowrap;">${iconText}${name}</div>`,
+          html: `<div style="background-color: ${markerColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.3); white-space: nowrap;">${iconText}${name}</div>`,
           iconSize: [0, 0],
           iconAnchor: [15, 15]
         });
@@ -225,7 +257,7 @@ async function fetchNearbyShopsAndFuelOSM(lat, lng) {
             <div style="font-family: inherit;">
               <b>${iconText}${name}</b><br/>
               <span style="color: #64748b; font-size: 0.85rem;">${isFuel ? "Station-service" : "Commerce"}</span><br/>
-              <button onclick="selectStoreFromMap('${index}')" style="margin-top: 6px; background: #10b981; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;">📍 Sélectionner ce lieu</button>
+              <button onclick="selectStoreFromMap('${index}')" style="margin-top: 8px; background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold;">📍 Sélectionner ce lieu</button>
             </div>
           `);
 
@@ -233,7 +265,7 @@ async function fetchNearbyShopsAndFuelOSM(lat, lng) {
       }
     });
   } catch (err) {
-    storeSelect.innerHTML = "<option value=''>Station / Commerce de proximité</option>";
+    storeSelect.innerHTML = "<option value=''>Erreur de chargement des lieux proches</option>";
   }
 }
 
@@ -248,109 +280,75 @@ async function fetchReports() {
   if (error) return;
 
   allReportsData = reports || [];
-  updateStatsDashboard();
-
-  const feedContainer = document.getElementById("reports-feed");
-  if (feedContainer) feedContainer.innerHTML = "";
-
-  if (allReportsData.length > 0) {
-    allReportsData.forEach((report) => addReportToUI(report, false));
-  } else if (feedContainer) {
-    feedContainer.innerHTML = "<p style='color:#64748b; text-align:center;'>Aucun signalement pour le moment.</p>";
-  }
+  updateLiveStockTicker();
+  renderReportsFeed();
+  renderMapMarkers();
 }
 
-// Mise à jour du rapport statistique et de la région active
-function updateStatsDashboard() {
-  const total = allReportsData.length;
-  const dispo = allReportsData.filter(r => r.status === "Disponible").length;
-  const rupture = allReportsData.filter(r => r.status === "Rupture").length;
+// Mise à jour du Flash Info avec les stocks réels
+function updateLiveStockTicker() {
+  const tickerEl = document.getElementById("live-stock-ticker");
+  if (!tickerEl) return;
 
-  const totalEl = document.getElementById("stat-total");
-  const dispoEl = document.getElementById("stat-dispo");
-  const ruptureEl = document.getElementById("stat-rupture");
-
-  if (totalEl) totalEl.textContent = total;
-  if (dispoEl) dispoEl.textContent = dispo;
-  if (ruptureEl) ruptureEl.textContent = rupture;
-
-  const regionEl = document.getElementById("stat-top-region");
-  if (regionEl) {
-    if (allReportsData.length === 0) {
-      regionEl.textContent = "Aucune donnée";
-    } else {
-      const counts = {};
-      allReportsData.forEach(r => {
-        if (r.address) {
-          const parts = r.address.split(",");
-          const city = parts[parts.length - 1].trim();
-          if (city) {
-            counts[city] = (counts[city] || 0) + 1;
-          }
-        }
-      });
-
-      let topCity = "Ariana / Tunis";
-      let maxCount = 0;
-      for (const [city, count] of Object.entries(counts)) {
-        if (count > maxCount) {
-          maxCount = count;
-          topCity = city;
-        }
-      }
-      regionEl.textContent = topCity;
-    }
-  }
-}
-
-function addReportToUI(report, isNew = true) {
-  if (!report || !report.id) return;
-  const reportId = String(report.id);
-
-  if (processedReportIds.has(reportId) || document.querySelector(`[data-report-id="${reportId}"]`)) {
+  if (allReportsData.length === 0) {
+    tickerEl.textContent = "⚡ Aucun signalement de stock récent pour le moment sur le réseau Win Nal9a 🇹🇳";
     return;
   }
-  processedReportIds.add(reportId);
 
-  if (isNew) {
-    allReportsData.unshift(report);
-    updateStatsDashboard();
-  }
-
-  const isDispo = report.status === "Disponible";
-  const badgeClass = isDispo ? "badge-dispo" : "badge-rupture";
-  const statusLabel = isDispo ? "En stock" : "En rupture";
-
-  const formattedDate = new Date(report.created_at).toLocaleString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
+  const tickerMessages = allReportsData.map(r => {
+    const statusText = r.status === "Disponible" ? "🟢 En stock" : "🔴 En rupture";
+    return `📦 ${r.product_name} chez [${r.store_name || "Lieu"}] (${r.address || "Tunisie"}) ➔ ${statusText}`;
   });
 
-  const addressText = report.address || "Adresse non renseignée";
-  const storeName = report.store_name || "Station / Commerce";
-  const productName = report.product_name || "Produit";
+  tickerEl.textContent = tickerMessages.join("   •   ");
+}
 
-  if (!markersMap.has(reportId)) {
-    const marker = L.marker([report.latitude, report.longitude])
-      .addTo(map)
-      .bindPopup(`
-        <div style="font-family: inherit; line-height: 1.4;">
-          <b style="font-size: 1.05rem; color: #0f172a;">📦 ${productName}</b> <span class="badge-status ${badgeClass}">${statusLabel}</span><br/>
-          <span style="color: #0284c7; font-weight: 600;">📍 ${storeName}</span><br/>
-          <span style="color: #64748b; font-size: 0.85rem;">🏙️ ${addressText}</span><br/>
-          <span style="color: #94a3b8; font-size: 0.78rem;">🕒 ${formattedDate}</span>
-        </div>
-      `);
-    markersMap.set(reportId, marker);
+window.handleListSearch = function(productName) {
+  currentSearchQuery = productName.toLowerCase().trim();
+  renderReportsFeed();
+  renderMapMarkers();
+};
+
+window.filterReports = function(status, btnEl) {
+  currentFilter = status;
+  document.querySelectorAll('.filter-pills .pill-btn').forEach(btn => btn.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+  renderReportsFeed();
+  renderMapMarkers();
+};
+
+function renderReportsFeed() {
+  const feedContainer = document.getElementById("reports-feed");
+  if (!feedContainer) return;
+
+  feedContainer.innerHTML = "";
+
+  let filtered = allReportsData.filter(r => {
+    const matchStatus = (currentFilter === 'all' || r.status === currentFilter);
+    const matchQuery = !currentSearchQuery || 
+      (r.product_name && r.product_name.toLowerCase().includes(currentSearchQuery)) ||
+      (r.store_name && r.store_name.toLowerCase().includes(currentSearchQuery)) ||
+      (r.address && r.address.toLowerCase().includes(currentSearchQuery));
+    return matchStatus && matchQuery;
+  });
+
+  if (filtered.length === 0) {
+    feedContainer.innerHTML = "<p style='color:#64748b; text-align:center; padding: 24px;'>Aucun signalement ne correspond à votre sélection.</p>";
+    return;
   }
 
-  const feedContainer = document.getElementById("reports-feed");
-  if (feedContainer) {
-    if (feedContainer.querySelector("p")) {
-      feedContainer.innerHTML = "";
-    }
+  filtered.forEach(report => {
+    const reportId = String(report.id);
+    const isDispo = report.status === "Disponible";
+    const badgeClass = isDispo ? "badge-dispo" : "badge-rupture";
+    const statusLabel = isDispo ? "En stock" : "En rupture";
+
+    const formattedDate = new Date(report.created_at).toLocaleString("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
 
     const item = document.createElement("div");
     item.className = `feed-item ${isDispo ? "disponible" : "rupture"}`;
@@ -359,35 +357,72 @@ function addReportToUI(report, isNew = true) {
 
     item.innerHTML = `
       <div class="feed-details">
-        <strong>📦 ${productName} <span class="badge-status ${badgeClass}">${statusLabel}</span></strong>
-        <span class="feed-store" style="color: #0284c7; font-weight: 600; margin-top: 2px; display: block;">📍 ${storeName}</span>
-        <span class="feed-address">🏙️ ${addressText}</span>
+        <strong>📦 ${report.product_name} <span class="badge-status ${badgeClass}">${statusLabel}</span></strong>
+        <span class="feed-store" style="color: #0284c7; font-weight: 600; margin-top: 2px; display: block;">📍 ${report.store_name || "Lieu"}</span>
+        <span class="feed-address">🏙️ ${report.address || "Tunisie"}</span>
       </div>
       <div class="feed-time">🕒 ${formattedDate}</div>
     `;
 
-    if (isNew) {
-      feedContainer.prepend(item);
-    } else {
-      feedContainer.appendChild(item);
-    }
-  }
+    feedContainer.appendChild(item);
+  });
 }
 
-function showInstantNotification(report) {
-  const reportId = String(report.id);
+function renderMapMarkers() {
+  markersMap.forEach(marker => map.removeLayer(marker));
+  markersMap.clear();
+
+  let filtered = allReportsData.filter(r => {
+    const matchStatus = (currentFilter === 'all' || r.status === currentFilter);
+    const matchQuery = !currentSearchQuery || 
+      (r.product_name && r.product_name.toLowerCase().includes(currentSearchQuery)) ||
+      (r.store_name && r.store_name.toLowerCase().includes(currentSearchQuery)) ||
+      (r.address && r.address.toLowerCase().includes(currentSearchQuery));
+    return matchStatus && matchQuery;
+  });
+
+  filtered.forEach(report => {
+    const reportId = String(report.id);
+    const isDispo = report.status === "Disponible";
+    const badgeClass = isDispo ? "badge-dispo" : "badge-rupture";
+    const statusLabel = isDispo ? "En stock" : "En rupture";
+    const markerColor = isDispo ? "#10b981" : "#ef4444";
+
+    const customPin = L.divIcon({
+      className: 'custom-report-pin',
+      html: `<div style="background-color: ${markerColor}; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 2px solid white;">${isDispo ? '✓' : '✕'}</div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 15]
+    });
+
+    const formattedDate = new Date(report.created_at).toLocaleString("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+
+    const marker = L.marker([report.latitude, report.longitude], { icon: customPin })
+      .addTo(map)
+      .bindPopup(`
+        <div style="font-family: inherit; line-height: 1.5; min-width: 180px;">
+          <b style="font-size: 1.05rem; color: #0f172a;">📦 ${report.product_name}</b> <span class="badge-status ${badgeClass}">${statusLabel}</span><br/>
+          <span style="color: #0284c7; font-weight: 600;">📍 ${report.store_name || "Lieu"}</span><br/>
+          <span style="color: #64748b; font-size: 0.85rem;">🏙️ ${report.address || "Tunisie"}</span><br/>
+          <span style="color: #94a3b8; font-size: 0.78rem; display: block; margin-top: 4px;">🕒 ${formattedDate}</span>
+        </div>
+      `);
+
+    markersMap.set(reportId, marker);
+  });
+}
+
+function showToastNotification(text) {
   const toast = document.createElement("div");
   toast.className = "toast-notification";
-  toast.onclick = () => window.focusOnMapMarker(reportId, report.latitude, report.longitude);
-
-  toast.innerHTML = `
-    <strong>🚨 Nouveau Signalement !</strong><br/>
-    📦 <b>${report.product_name}</b> - ${report.status}<br/>
-    📍 <small>${report.store_name || "Lieu"}</small>
-  `;
-
+  toast.innerHTML = text;
   document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 6000);
+  setTimeout(() => toast.remove(), 4000);
 }
 
 function listenRealtimeReports() {
@@ -398,7 +433,7 @@ function listenRealtimeReports() {
   }
 
   realtimeChannel = supabaseClient
-    .channel("public-reports-channel")
+    .channel("winou-realtime-reports")
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "reports" },
@@ -407,8 +442,12 @@ function listenRealtimeReports() {
         if (newReport && newReport.id) {
           const reportId = String(newReport.id);
           if (!processedReportIds.has(reportId)) {
-            addReportToUI(newReport, true);
-            showInstantNotification(newReport);
+            processedReportIds.add(reportId);
+            allReportsData.unshift(newReport);
+            updateLiveStockTicker();
+            renderReportsFeed();
+            renderMapMarkers();
+            showToastNotification(`🚨 Nouvelle alerte : <b>${newReport.product_name}</b> (${newReport.status})`);
           }
         }
       }
@@ -437,11 +476,15 @@ async function handleReportSubmit(e) {
   const storeIndex = storeSelect ? storeSelect.value : "";
   const status = document.getElementById("status").value;
 
-  let storeName = "Station / Commerce de proximité";
+  let storeName = "Commerce de proximité";
   let reportLat = userPos.lat;
   let reportLng = userPos.lng;
 
-  if (storeIndex !== "" && nearbyStores[storeIndex]) {
+  if (storeIndex === "custom_map_point") {
+    reportLat = parseFloat(document.getElementById("selected-lat").value) || userPos.lat;
+    reportLng = parseFloat(document.getElementById("selected-lng").value) || userPos.lng;
+    storeName = "Lieu épinglé sur carte";
+  } else if (storeIndex !== "" && nearbyStores[storeIndex]) {
     const selected = nearbyStores[storeIndex];
     const isFuel = selected.tags.amenity === "fuel";
     const defaultName = isFuel ? "Station-Service" : "Commerce de proximité";
@@ -450,7 +493,10 @@ async function handleReportSubmit(e) {
     reportLng = selected.lon || (selected.center && selected.center.lon) || userPos.lng;
   }
 
-  const fetchedAddress = await getAddressFromCoords(reportLat, reportLng);
+  let fetchedAddress = document.getElementById("selected-custom-address").value;
+  if (!fetchedAddress || storeIndex !== "custom_map_point") {
+    fetchedAddress = await getAddressFromCoords(reportLat, reportLng);
+  }
 
   const newRecord = {
     product_name: productName,
@@ -464,11 +510,88 @@ async function handleReportSubmit(e) {
   const { error } = await supabaseClient.from("reports").insert([newRecord]);
 
   if (error) {
-    alert("Erreur lors de l'envoi du signalement.");
+    alert("Erreur lors de l'envoi de l'alerte. Veuillez réessayer.");
   } else {
     document.getElementById("report-form").reset();
     document.getElementById("custom-product-group").style.display = "none";
+    if (interactivePinMarker) {
+      map.removeLayer(interactivePinMarker);
+      interactivePinMarker = null;
+    }
+    showToastNotification("✅ Alerte diffusée avec succès sur tout le réseau !");
   }
 
   if (submitBtn) submitBtn.disabled = false;
+}
+
+// Logique Assistant IA Style Claude/Gemini (Winou AI)
+window.openAIAssistantModal = function() {
+  const modal = document.getElementById("ai-chat-modal");
+  if (modal) modal.style.display = "flex";
+  document.getElementById("ai-user-input")?.focus();
+};
+
+window.closeAIAssistantModal = function() {
+  const modal = document.getElementById("ai-chat-modal");
+  if (modal) modal.style.display = "none";
+};
+
+window.handleAIPressKey = function(e) {
+  if (e.key === "Enter") sendAIMessage();
+};
+
+window.sendQuickPrompt = function(promptText) {
+  const inputEl = document.getElementById("ai-user-input");
+  if (inputEl) {
+    inputEl.value = promptText;
+    sendAIMessage();
+  }
+};
+
+window.sendAIMessage = function() {
+  const inputEl = document.getElementById("ai-user-input");
+  const messagesContainer = document.getElementById("ai-chat-messages");
+  const query = inputEl.value.trim();
+  if (!query) return;
+
+  // Affichage message utilisateur
+  messagesContainer.innerHTML += `
+    <div class="ai-msg user">
+      <div class="ai-bubble">${escapeHtml(query)}</div>
+    </div>`;
+  inputEl.value = "";
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+  // Simulation réponse IA style Claude / Gemini
+  setTimeout(() => {
+    let botReply = "Je n'ai pas trouvé assez de précisions dans la base en direct. Essayez de reformuler votre demande.";
+    const lowerQ = query.toLowerCase();
+
+    if (lowerQ.includes("lait") || lowerQ.includes("carburant") || lowerQ.includes("essence") || lowerQ.includes("eau") || lowerQ.includes("sucre") || lowerQ.includes("gasoil") || lowerQ.includes("trouver")) {
+      const found = allReportsData.filter(r => r.product_name && lowerQ.includes(r.product_name.toLowerCase()) && r.status === "Disponible");
+      if (found.length > 0) {
+        botReply = `Voici les derniers signalements positifs en stock correspondants :\n\n` + found.map(f => `• **${f.product_name}** chez *${f.store_name}* (${f.address})`).join("\n");
+      } else {
+        botReply = `D'après les derniers rapports du réseau, aucun stock n'est actuellement confirmé pour cette recherche. N'hésitez pas à consulter la carte interactive ou à poster une alerte.`;
+      }
+    } else if (lowerQ.includes("bilan") || lowerQ.includes("stat") || lowerQ.includes("combien")) {
+      const dispoCount = allReportsData.filter(r => r.status === "Disponible").length;
+      const ruptureCount = allReportsData.filter(r => r.status === "Rupture").length;
+      botReply = `📊 **Bilan du réseau Win Nal9a 🇹🇳 :**\n- Total signalements actifs : **${allReportsData.length}**\n- Produits en stock : **${dispoCount}**\n- Produits en rupture : **${ruptureCount}**`;
+    } else {
+      botReply = `💡 En tant qu'assistant Winou AI, je peux analyser pour vous la disponibilité du lait, du sucre, des carburants et des produits de première nécessité en Tunisie. Posez-moi une question précise sur un article !`;
+    }
+
+    messagesContainer.innerHTML += `
+      <div class="ai-msg bot">
+        <div class="ai-avatar">✨</div>
+        <div class="ai-bubble">${escapeHtml(botReply).replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>')}</div>
+      </div>`;
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }, 600);
+};
+
+function escapeHtml(text) {
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return text.replace(/[&<>"']/g, function(m) { return map[m]; });
 }
