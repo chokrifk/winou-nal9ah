@@ -3,14 +3,16 @@ const SUPABASE_KEY = "sb_publishable_TIb7eyfTYz5x-DhexGOWDw_VkPja_E-";
 
 let supabaseClient = null;
 let realtimeChannel = null;
+let presenceChannel = null;
 let realtimeSubscribed = false;
 
 let map;
-let userPos = { lat: 36.8065, lng: 10.1815 }; // Ariana / Tunis par défaut
+let userPos = { lat: 36.8065, lng: 10.1815 };
 let nearbyStores = [];
+let allReportsData = [];
 
 const markersMap = new Map();
-const osmMarkersGroup = L.layerGroup(); // Groupe pour les stations/magasins OSM
+const osmMarkersGroup = L.layerGroup();
 const processedReportIds = new Set();
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -30,6 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   initMap();
+  initPresenceTracking();
 });
 
 function toggleCustomProductInput(selectEl) {
@@ -113,7 +116,43 @@ window.focusOnMapMarker = function(reportId, lat, lng) {
   document.getElementById("map")?.scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
-// RECHERCHE DES STATIONS ET COMMERCES ET AFFICHAGE SUR LA CARTE + LISTE
+// Suivi des utilisateurs connectés en temps réel
+function initPresenceTracking() {
+  if (!supabaseClient) return;
+  presenceChannel = supabaseClient.channel("online-users-room", {
+    config: { presence: { key: "user_" + Math.random().toString(36).substring(2, 9) } }
+  });
+
+  presenceChannel
+    .on("presence", { event: "sync" }, () => {
+      const state = presenceChannel.presenceState();
+      const totalOnline = Object.keys(state).length;
+      const countEl = document.getElementById("connected-users-count");
+      if (countEl) countEl.textContent = totalOnline > 0 ? totalOnline : 1;
+    })
+    .subscribe(async (status) => {
+      if (status === "SUBSCRIBED") {
+        await presenceChannel.track({ online_at: new Date().toISOString() });
+      }
+    });
+}
+
+// Sélection automatique du commerce dans le formulaire et scroll vers celui-ci
+window.selectStoreFromMap = function(index) {
+  const storeSelect = document.getElementById("store-select");
+  if (storeSelect) {
+    storeSelect.value = index;
+    // Déclencher un effet visuel de mise en surbrillance du select
+    storeSelect.style.borderColor = "#10b981";
+    storeSelect.style.boxShadow = "0 0 0 3px rgba(16, 185, 129, 0.2)";
+    setTimeout(() => {
+      storeSelect.style.borderColor = "";
+      storeSelect.style.boxShadow = "";
+    }, 1500);
+  }
+  document.getElementById("report-form")?.scrollIntoView({ behavior: "smooth", block: "center" });
+};
+
 async function fetchNearbyShopsAndFuelOSM(lat, lng) {
   const storeSelect = document.getElementById("store-select");
   if (!storeSelect) return;
@@ -136,7 +175,7 @@ async function fetchNearbyShopsAndFuelOSM(lat, lng) {
     const data = await response.json();
 
     storeSelect.innerHTML = "";
-    osmMarkersGroup.clearLayers(); // Nettoyer les anciens marqueurs sur la carte
+    osmMarkersGroup.clearLayers();
     nearbyStores = data.elements || [];
 
     if (nearbyStores.length === 0) {
@@ -155,19 +194,16 @@ async function fetchNearbyShopsAndFuelOSM(lat, lng) {
       const name = store.tags.name || store.tags.brand || defaultName;
       const iconText = isFuel ? "⛽ " : "🏬 ";
 
-      // 1. Ajouter dans la liste déroulante
       const opt = document.createElement("option");
       opt.value = index;
       opt.textContent = `${iconText}${name}`;
       storeSelect.appendChild(opt);
 
-      // 2. Coordonnées du lieu (pour les 'way', Overpass renvoie 'center')
       const sLat = store.lat || (store.center && store.center.lat);
       const sLng = store.lon || (store.center && store.center.lon);
 
       if (sLat && sLng) {
-        // Création d'un marqueur visuel sur la carte pour chaque station/commerce trouvé
-        const markerColor = isFuel ? "#f97316" : "#0ea5e9"; // Orange pour essence, Bleu pour commerce
+        const markerColor = isFuel ? "#f97316" : "#0ea5e9";
         const pinIcon = L.divIcon({
           className: 'custom-osm-pin',
           html: `<div style="background-color: ${markerColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); white-space: nowrap;">${iconText}${name}</div>`,
@@ -180,7 +216,7 @@ async function fetchNearbyShopsAndFuelOSM(lat, lng) {
             <div style="font-family: inherit;">
               <b>${iconText}${name}</b><br/>
               <span style="color: #64748b; font-size: 0.85rem;">${isFuel ? "Station-service" : "Commerce"}</span><br/>
-              <button onclick="document.getElementById('store-select').value='${index}'; document.getElementById('report-form').scrollIntoView({behavior:'smooth'});" style="margin-top: 6px; background: #10b981; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Sélectionner pour signaler</button>
+              <button onclick="selectStoreFromMap('${index}')" style="margin-top: 6px; background: #10b981; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;">📍 Sélectionner ce lieu</button>
             </div>
           `);
 
@@ -202,14 +238,28 @@ async function fetchReports() {
 
   if (error) return;
 
+  allReportsData = reports || [];
+  updateStatsDashboard();
+
   const feedContainer = document.getElementById("reports-feed");
   if (feedContainer) feedContainer.innerHTML = "";
 
-  if (reports && reports.length > 0) {
-    reports.forEach((report) => addReportToUI(report, false));
+  if (allReportsData.length > 0) {
+    allReportsData.forEach((report) => addReportToUI(report, false));
   } else if (feedContainer) {
     feedContainer.innerHTML = "<p style='color:var(--text-muted); text-align:center;'>Aucun signalement pour le moment.</p>";
   }
+}
+
+// Mise à jour du tableau de bord / rapport
+function updateStatsDashboard() {
+  const total = allReportsData.length;
+  const dispo = allReportsData.filter(r => r.status === "Disponible").length;
+  const rupture = allReportsData.filter(r => r.status === "Rupture").length;
+
+  document.getElementById("stat-total").textContent = total;
+  document.getElementById("stat-dispo").textContent = dispo;
+  document.getElementById("stat-rupture").textContent = rupture;
 }
 
 function addReportToUI(report, isNew = true) {
@@ -220,6 +270,11 @@ function addReportToUI(report, isNew = true) {
     return;
   }
   processedReportIds.add(reportId);
+
+  if (isNew) {
+    allReportsData.unshift(report);
+    updateStatsDashboard();
+  }
 
   const isDispo = report.status === "Disponible";
   const badgeClass = isDispo ? "badge-dispo" : "badge-rupture";
