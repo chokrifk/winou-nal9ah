@@ -36,6 +36,7 @@ body {
   text-align: center;
   box-shadow: var(--shadow-md);
   margin-bottom: 28px;
+  position: relative;
 }
 
 .app-header h1 {
@@ -48,6 +49,20 @@ body {
   font-size: 0.95rem;
   opacity: 0.9;
   margin-top: 4px;
+}
+
+.powered-by {
+  display: inline-block;
+  margin-top: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 /* Structure en Grille responsive */
@@ -74,7 +89,6 @@ body {
   box-shadow: var(--shadow-sm);
   padding: 20px;
   margin-bottom: 20px;
-  transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .card-title {
@@ -86,7 +100,7 @@ body {
   gap: 8px;
 }
 
-/* Formulaire moderne */
+/* Formulaire */
 .form-group {
   margin-bottom: 16px;
 }
@@ -172,7 +186,6 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  transition: all 0.2s;
 }
 
 .btn-locate:hover {
@@ -242,13 +255,8 @@ body {
   box-shadow: var(--shadow-md);
 }
 
-.feed-item.disponible {
-  border-left-color: #10b981;
-}
-
-.feed-item.rupture {
-  border-left-color: #ef4444;
-}
+.feed-item.disponible { border-left-color: #10b981; }
+.feed-item.rupture { border-left-color: #ef4444; }
 
 .feed-details strong {
   display: block;
@@ -260,9 +268,6 @@ body {
 .feed-store {
   font-size: 0.88rem;
   color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
 
 .feed-address {
@@ -289,7 +294,7 @@ body {
 .badge-dispo { background: #d1fae5; color: #065f46; }
 .badge-rupture { background: #fee2e2; color: #991b1b; }
 
-/* Notifications Toast Glassmorphism */
+/* Toast Notifications */
 .toast-notification {
   position: fixed;
   bottom: 20px;
@@ -303,10 +308,11 @@ body {
   z-index: 1000;
   max-width: 320px;
   font-size: 0.88rem;
-  animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-@keyframes toastIn {
-  from { opacity: 0; transform: translateY(20px) scale(0.9); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+.app-footer {
+  text-align: center;
+  margin-top: 40px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
 }
