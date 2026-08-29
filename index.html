@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,7 +12,7 @@
 </head>
 <body>
 
-  <!-- Bandeau Flash Info Dynamique (Stocks & Signalements en direct) -->
+  <!-- Bandeau Flash Info Dynamique -->
   <div class="live-ticker-banner">
     <div class="ticker-label">🔴 Flash Info Stocks</div>
     <div class="ticker-content">
@@ -34,6 +34,10 @@
       </div>
       
       <div class="header-right-actions">
+        <!-- Bouton Mode Sombre -->
+        <button id="theme-toggle-btn" class="theme-toggle-btn" onclick="toggleDarkMode()" title="Changer le mode d'affichage">
+          🌙
+        </button>
         <span class="tunisia-flag-emoji" title="Tunisie">🇹🇳</span>
         <div id="online-users-badge" class="online-badge">
           <span class="pulse-green"></span> <span id="connected-users-count">2903</span> en ligne
@@ -47,9 +51,10 @@
     <!-- Colonne de gauche -->
     <section class="left-column">
       
-      <!-- Recherche par LISTE (Sélecteur direct) -->
+      <!-- Recherche par LISTE & Rayon de proximité -->
       <div class="card-panel search-panel-box">
-        <h2 class="card-title" style="font-size: 0.95rem; margin-bottom: 10px;">🔍 Filtrer par liste de produits</h2>
+        <h2 class="card-title" style="font-size: 0.95rem; margin-bottom: 10px;">🔍 Filtrer & Proximité</h2>
+        
         <div class="form-group" style="margin-bottom: 8px;">
           <select id="list-filter-select" class="form-control" onchange="handleListSearch(this.value)">
             <option value="">🌐 Tous les produits et carburants</option>
@@ -71,11 +76,22 @@
             </optgroup>
           </select>
         </div>
+
+        <!-- Sélecteur de Rayon -->
+        <div class="form-group" style="margin-bottom: 8px;">
+          <select id="radius-filter-select" class="form-control" onchange="handleRadiusChange(this.value)">
+            <option value="all">📍 Autour de moi : Toute la Tunisie</option>
+            <option value="2">🎯 Rayon proche : 2 km</option>
+            <option value="5">🚗 Rayon ville : 5 km</option>
+            <option value="10">🚙 Rayon large : 10 km</option>
+          </select>
+        </div>
+
         <!-- Filtres rapides par statut -->
         <div class="filter-pills">
-          <button class="pill-btn active" onclick="filterReports('all', this)">🌐 Tout voir</button>
-          <button class="pill-btn" onclick="filterReports('Disponible', this)">🟢 En stock</button>
-          <button class="pill-btn" onclick="filterReports('Rupture', this)">🔴 En rupture</button>
+          <button class="pill-btn active" onclick="filterReports('all', this)">🌐 Tout</button>
+          <button class="pill-btn" onclick="filterReports('Disponible', this)">🟢 Stock</button>
+          <button class="pill-btn" onclick="filterReports('Rupture', this)">🔴 Rupture</button>
         </div>
       </div>
 
