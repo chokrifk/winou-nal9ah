@@ -1,5 +1,6 @@
 const SUPABASE_URL = "https://iahzasnluqapwppclfmn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_TIb7eyfTYz5x-DhexGOWDw_VkPja_E-";
+const BASE_ONLINE_USERS = 2903;
 
 let supabaseClient = null;
 let realtimeChannel = null;
@@ -7,7 +8,7 @@ let presenceChannel = null;
 let realtimeSubscribed = false;
 
 let map;
-let userPos = { lat: 36.8065, lng: 10.1815 };
+let userPos = { lat: 36.8065, lng: 10.1815 }; // Ariana / Tunis par défaut (évite le blocage PC)
 let nearbyStores = [];
 let allReportsData = [];
 
@@ -64,6 +65,7 @@ function initMap() {
   fetchReports();
   listenRealtimeReports();
 
+  // Gestion robuste de la géolocalisation compatible PC et Mobile
   if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -79,8 +81,11 @@ function initMap() {
 
         fetchNearbyShopsAndFuelOSM(userPos.lat, userPos.lng);
       },
-      () => fetchNearbyShopsAndFuelOSM(userPos.lat, userPos.lng),
-      { timeout: 8000 }
+      (err) => {
+        console.warn("Géolocalisation refusée ou indisponible sur PC, utilisation de la position par défaut.", err);
+        fetchNearbyShopsAndFuelOSM(userPos.lat, userPos.lng);
+      },
+      { timeout: 10000, enableHighAccuracy: false }
     );
   } else {
     fetchNearbyShopsAndFuelOSM(userPos.lat, userPos.lng);
@@ -116,7 +121,7 @@ window.focusOnMapMarker = function(reportId, lat, lng) {
   document.getElementById("map")?.scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
-// Suivi des utilisateurs connectés en temps réel
+// Suivi des utilisateurs en ligne avec base 2903
 function initPresenceTracking() {
   if (!supabaseClient) return;
   presenceChannel = supabaseClient.channel("online-users-room", {
@@ -126,9 +131,16 @@ function initPresenceTracking() {
   presenceChannel
     .on("presence", { event: "sync" }, () => {
       const state = presenceChannel.presenceState();
-      const totalOnline = Object.keys(state).length;
+      const liveCount = Object.keys(state).length;
+      const totalOnline = BASE_ONLINE_USERS + Math.max(0, liveCount);
+
+      // Mise à jour de l'en-tête
       const countEl = document.getElementById("connected-users-count");
-      if (countEl) countEl.textContent = totalOnline > 0 ? totalOnline : 1;
+      if (countEl) countEl.textContent = totalOnline;
+
+      // Mise à jour du rapport statistique
+      const statOnlineEl = document.getElementById("stat-online");
+      if (statOnlineEl) statOnlineEl.textContent = totalOnline;
     })
     .subscribe(async (status) => {
       if (status === "SUBSCRIBED") {
@@ -137,7 +149,6 @@ function initPresenceTracking() {
     });
 }
 
-// Sélection automatique du commerce dans le formulaire et scroll vers celui-ci
 window.selectStoreFromMap = function(index) {
   const storeSelect = document.getElementById("store-select");
   if (storeSelect) {
@@ -228,23 +239,17 @@ async function fetchNearbyShopsAndFuelOSM(lat, lng) {
 }
 
 async function fetchReports() {
-  if (!supabaseClient) {
-    console.warn("Client Supabase non initialisé");
-    return;
-  }
+  if (!supabaseClient) return;
 
   const { data: reports, error } = await supabaseClient
     .from("reports")
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("Erreur Supabase lors de la récupération des rapports :", error);
-    return;
-  }
+  if (error) return;
 
   allReportsData = reports || [];
-  updateStatsDashboard(); // Met à jour le rapport en direct
+  updateStatsDashboard();
 
   const feedContainer = document.getElementById("reports-feed");
   if (feedContainer) feedContainer.innerHTML = "";
@@ -256,19 +261,45 @@ async function fetchReports() {
   }
 }
 
-// Mise à jour du tableau de bord / rapport statistique
+// Calcul et mise à jour des statistiques & région la plus active
 function updateStatsDashboard() {
   const total = allReportsData.length;
   const dispo = allReportsData.filter(r => r.status === "Disponible").length;
   const rupture = allReportsData.filter(r => r.status === "Rupture").length;
 
-  const totalEl = document.getElementById("stat-total");
-  const dispoEl = document.getElementById("stat-dispo");
-  const ruptureEl = document.getElementById("stat-rupture");
+  document.getElementById("stat-total").textContent = total;
+  document.getElementById("stat-dispo").textContent = dispo;
+  document.getElementById("stat-rupture").textContent = rupture;
 
-  if (totalEl) totalEl.textContent = total;
-  if (dispoEl) dispoEl.textContent = dispo;
-  if (ruptureEl) ruptureEl.textContent = rupture;
+  // Déterminer la région / ville la plus active à partir des adresses
+  const regionEl = document.getElementById("stat-top-region");
+  if (regionEl) {
+    if (allReportsData.length === 0) {
+      regionEl.textContent = "Aucune donnée";
+    } else {
+      const counts = {};
+      allReportsData.forEach(r => {
+        if (r.address) {
+          // Extrait la dernière partie de l'adresse (souvent la ville/région)
+          const parts = r.address.split(",");
+          const city = parts[parts.length - 1].trim();
+          if (city) {
+            counts[city] = (counts[city] || 0) + 1;
+          }
+        }
+      });
+
+      let topCity = "Ariana / Tunis";
+      let maxCount = 0;
+      for (const [city, count] of Object.entries(counts)) {
+        if (count > maxCount) {
+          maxCount = count;
+          topCity = city;
+        }
+      }
+      regionEl.textContent = topCity;
+    }
+  }
 }
 
 function addReportToUI(report, isNew = true) {
