@@ -9,6 +9,7 @@
 </head>
 <body>
 
+    <!-- Barre supérieure KPI -->
     <header class="app-header">
         <div class="logo-area">
             <h1>📍 Win Nal9a</h1>
@@ -26,8 +27,10 @@
     </header>
 
     <div class="main-container">
+        <!-- Bouton mobile pour ouvrir le panneau -->
         <button id="toggle-sidebar" class="mobile-toggle-btn">☰ Filtrer & Signaler</button>
 
+        <!-- Panneau latéral (Tiroir) -->
         <aside id="sidebar" class="sidebar">
             <div class="sidebar-section">
                 <h3>🔍 Filtrer & Proximité</h3>
@@ -41,7 +44,6 @@
                     <button class="btn btn-success" data-filter="stock">Stock</button>
                     <button class="btn btn-danger" data-filter="rupture">Rupture</button>
                 </div>
-                <button id="btn-gps" class="btn btn-gps">📍 Ma position GPS</button>
             </div>
 
             <div class="sidebar-section">
@@ -72,10 +74,13 @@
 
             <div class="sidebar-section">
                 <h3>📋 Flux des alertes en direct</h3>
-                <div id="alerts-stream" class="alerts-stream"></div>
+                <div id="alerts-stream" class="alerts-stream">
+                    <!-- Flux dynamique -->
+                </div>
             </div>
         </aside>
 
+        <!-- Carte interactive -->
         <main class="map-container">
             <div id="map"></div>
         </main>
