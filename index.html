@@ -14,7 +14,7 @@
 
   <header class="app-header">
     <h1>🛒 Disponibilité en Direct</h1>
-    <p>Signalez et trouvez les produits disponibles dans vos commerces de proximité</p>
+    <p>Signalez et trouvez les produits & carburants disponibles à proximité</p>
     <div class="powered-by">Powered by Choco</div>
   </header>
 
@@ -27,41 +27,51 @@
         <h2 class="card-title">📝 Publier un signalement</h2>
         <form id="report-form">
           
-          <!-- LISTE FIXE DES PRODUITS -->
+          <!-- LISTE FIXE DES PRODUITS ET CARBURANTS -->
           <div class="form-group">
-            <label for="product-select">Produit</label>
+            <label for="product-select">Produit / Carburant</label>
             <select id="product-select" class="form-control" onchange="toggleCustomProductInput(this)" required>
               <option value="" disabled selected>-- Sélectionnez un produit --</option>
-              <option value="Eau minérale">🥤 Eau minérale</option>
-              <option value="Lait">🥛 Lait</option>
-              <option value="Sucre">🧂 Sucre</option>
-              <option value="Farine">🌾 Farine</option>
-              <option value="Huile d'olive">🫒 Huile d'olive</option>
-              <option value="Huile végétale">🧴 Huile végétale</option>
-              <option value="Pâtes / Riz">🍝 Pâtes / Riz</option>
-              <option value="Café">☕ Café</option>
-              <option value="Autre">✏️ Autre (Saisie libre)</option>
+              <optgroup label="⛽ Carburants">
+                <option value="Essence Sans Plomb">⛽ Essence Sans Plomb</option>
+                <option value="Gasoil / Diesel">⛽ Gasoil / Diesel</option>
+                <option value="Gasoil 50">⛽ Gasoil 50</option>
+                <option value="Bouteille de gaz">🔥 Bouteille de gaz</option>
+              </optgroup>
+              <optgroup label="🛒 Produits alimentaires">
+                <option value="Eau minérale">🥤 Eau minérale</option>
+                <option value="Lait">🥛 Lait</option>
+                <option value="Sucre">🧂 Sucre</option>
+                <option value="Farine">🌾 Farine</option>
+                <option value="Huile d'olive">🫒 Huile d'olive</option>
+                <option value="Huile végétale">🧴 Huile végétale</option>
+                <option value="Pâtes / Riz">🍝 Pâtes / Riz</option>
+                <option value="Café">☕ Café</option>
+              </optgroup>
+              <optgroup label="Autre">
+                <option value="Autre">✏️ Autre (Saisie libre)</option>
+              </optgroup>
             </select>
           </div>
 
-          <!-- Champ masqué par défaut pour saisie personnalisée si "Autre" est choisi -->
+          <!-- Champ masqué par défaut pour saisie personnalisée -->
           <div class="form-group" id="custom-product-group" style="display: none;">
             <label for="product-custom">Nom du produit personnalisé</label>
-            <input type="text" id="product-custom" class="form-control" placeholder="Entrez le nom du produit..." />
+            <input type="text" id="product-custom" class="form-control" placeholder="Entrez le nom..." />
           </div>
 
           <div class="form-group">
             <label for="status">État du stock</label>
             <select id="status" class="form-control" required>
-              <option value="Disponible">🟢 En stock</option>
+              <option value="Disponible">🟢 En stock / Disponible</option>
               <option value="Rupture">🔴 En rupture</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label for="store-select">Magasin / Commerce</label>
+            <label for="store-select">Commerce / Station-Service</label>
             <select id="store-select" class="form-control">
-              <option value="">Recherche des commerces proches...</option>
+              <option value="">Recherche des lieux proches...</option>
             </select>
           </div>
 
