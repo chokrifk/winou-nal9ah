@@ -1,4 +1,3 @@
-// Configuration Supabase
 const SUPABASE_URL = "https://iahzasnluqapwppclfmn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_TIb7eyfTYz5x-DhexGOWDw_VkPja_E-";
 
@@ -7,7 +6,7 @@ let realtimeChannel = null;
 let realtimeSubscribed = false;
 
 let map;
-let userPos = { lat: 36.8065, lng: 10.1815 }; // Position par défaut (Tunis)
+let userPos = { lat: 36.8065, lng: 10.1815 }; // Tunis par défaut
 let nearbyStores = [];
 
 const markersMap = new Map();
@@ -21,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
   } catch (err) {
-    console.warn("Supabase init error:", err);
+    console.warn("Supabase error:", err);
   }
 
   const reportForm = document.getElementById("report-form");
@@ -31,6 +30,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   initMap();
 });
+
+function toggleCustomProductInput(selectEl) {
+  const customGroup = document.getElementById("custom-product-group");
+  const customInput = document.getElementById("product-custom");
+
+  if (selectEl.value === "Autre") {
+    customGroup.style.display = "block";
+    customInput.required = true;
+  } else {
+    customGroup.style.display = "none";
+    customInput.required = false;
+    customInput.value = "";
+  }
+}
 
 function initMap() {
   map = L.map("map").setView([userPos.lat, userPos.lng], 14);
@@ -94,7 +107,6 @@ window.focusOnMapMarker = function(reportId, lat, lng) {
   map.setView([lat, lng], 17, { animate: true });
   const marker = markersMap.get(String(reportId));
   if (marker) marker.openPopup();
-  
   document.getElementById("map")?.scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
@@ -166,7 +178,6 @@ function addReportToUI(report, isNew = true) {
   if (!report || !report.id) return;
   const reportId = String(report.id);
 
-  // SÉCURITÉ ANTI-DOUBLON
   if (processedReportIds.has(reportId) || document.querySelector(`[data-report-id="${reportId}"]`)) {
     return;
   }
@@ -185,7 +196,6 @@ function addReportToUI(report, isNew = true) {
 
   const addressText = report.address || "Adresse non renseignée";
 
-  // Marqueur sur la carte
   if (!markersMap.has(reportId)) {
     const marker = L.marker([report.latitude, report.longitude])
       .addTo(map)
@@ -198,7 +208,6 @@ function addReportToUI(report, isNew = true) {
     markersMap.set(reportId, marker);
   }
 
-  // Ajout dans le flux HTML
   const feedContainer = document.getElementById("reports-feed");
   if (feedContainer) {
     const item = document.createElement("div");
@@ -275,9 +284,15 @@ async function handleReportSubmit(e) {
   const submitBtn = e.target.querySelector("button[type='submit']");
   if (submitBtn) submitBtn.disabled = true;
 
+  const productSelect = document.getElementById("product-select");
+  let productName = productSelect.value;
+
+  if (productName === "Autre") {
+    productName = document.getElementById("product-custom").value.trim() || "Produit divers";
+  }
+
   const storeSelect = document.getElementById("store-select");
   const storeIndex = storeSelect ? storeSelect.value : "";
-  const productName = document.getElementById("product-name").value.trim();
   const status = document.getElementById("status").value;
 
   let storeName = "Épicerie de quartier";
@@ -308,6 +323,7 @@ async function handleReportSubmit(e) {
     alert("Erreur lors de l'envoi du signalement.");
   } else {
     document.getElementById("report-form").reset();
+    document.getElementById("custom-product-group").style.display = "none";
   }
 
   if (submitBtn) submitBtn.disabled = false;
