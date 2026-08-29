@@ -12,7 +12,7 @@
 </head>
 <body>
 
-  <!-- Bandeau Live Info / Flash Actu (Style Mosaique) en haut ou en bas -->
+  <!-- Bandeau Live Info / Flash Actu (Style Mosaique) -->
   <div class="live-ticker-banner">
     <div class="ticker-label">🔴 Flash Info Live</div>
     <div class="ticker-content">
@@ -47,7 +47,7 @@
     <!-- Colonne de gauche -->
     <section class="left-column">
       
-      <!-- Recherche par LISTE (Sélecteur direct au lieu de saisie manuelle) -->
+      <!-- Recherche par LISTE (Sélecteur direct) -->
       <div class="card-panel search-panel-box">
         <h2 class="card-title" style="font-size: 0.95rem; margin-bottom: 10px;">🔍 Filtrer par liste de produits</h2>
         <div class="form-group" style="margin-bottom: 8px;">
@@ -197,6 +197,23 @@
   <!-- Bouton Flottant Assistant IA -->
   <div class="ai-floating-assistant" onclick="openAIAssistantModal()">
     🤖 Assistant IA Winou
+  </div>
+
+  <!-- Fenêtre Modale de l'Assistant IA -->
+  <div id="ai-chat-modal" class="ai-modal-overlay" style="display: none;">
+    <div class="ai-modal-content">
+      <div class="ai-modal-header">
+        <h3>🤖 Assistant IA Winou</h3>
+        <button onclick="closeAIAssistantModal()" class="ai-close-btn">&times;</button>
+      </div>
+      <div id="ai-chat-messages" class="ai-chat-messages">
+        <div class="ai-msg bot">Bonjour ! Je suis l'assistant Winou 🇹🇳. Posez-moi vos questions sur les stocks ou les carburants disponibles en ce moment.</div>
+      </div>
+      <div class="ai-chat-input-area">
+        <input type="text" id="ai-user-input" placeholder="Ex: Où trouver du lait à Ariana ?" onkeypress="handleAIPressKey(event)" />
+        <button onclick="sendAIMessage()">Envoyer</button>
+      </div>
+    </div>
   </div>
 
   <footer class="app-footer">
