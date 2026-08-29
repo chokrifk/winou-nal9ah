@@ -1,15 +1,15 @@
-// Configuration des clés
+// Configuration des clés Supabase
 const SUPABASE_URL = "https://iahzasnluqapwppclfmn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_TIb7eyfTYz5x-DhexGOWDw_VkPja_E-";
 
 let supabaseClient = null;
 let map;
-let userPos = { lat: 36.8065, lng: 10.1815 }; // Tunis par défaut
+let userPos = { lat: 36.8065, lng: 10.1815 }; // Position par défaut (Tunis)
 let nearbyStores = [];
 
-// Initialisation au chargement de la page
+// Initialisation au chargement du DOM
 document.addEventListener("DOMContentLoaded", () => {
-  // Initialisation sécurisée de Supabase
+  // Initialisation sécurisée du client Supabase
   try {
     if (window.supabase && window.supabase.createClient) {
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -20,15 +20,21 @@ document.addEventListener("DOMContentLoaded", () => {
     console.warn("Connexion Supabase en mode fallback:", err);
   }
 
-  // Lancement de la carte Leaflet
+  // Écoute de la soumission du formulaire
+  const reportForm = document.getElementById("report-form");
+  if (reportForm) {
+    reportForm.addEventListener("submit", handleReportSubmit);
+  }
+
+  // Initialisation de la carte et des données
   initMap();
 });
 
 function initMap() {
-  // 1. Déclarer la carte
+  // 1. Déclaration de la carte
   map = L.map("map").setView([userPos.lat, userPos.lng], 14);
 
-  // 2. Ajouter les tuiles OpenStreetMap
+  // 2. Couche OpenStreetMap
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "© OpenStreetMap"
@@ -39,7 +45,7 @@ function initMap() {
     map.invalidateSize();
   }, 400);
 
-  // 3. Géolocalisation utilisateur
+  // 3. Géolocalisation de l'utilisateur
   if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -58,23 +64,28 @@ function initMap() {
 
         fetchNearbyShopsOSM(userPos.lat, userPos.lng);
         fetchReports();
+        listenRealtimeReports();
       },
       (err) => {
-        console.warn("GPS non activé ou refusé, utilisation position par défaut.");
+        console.warn("GPS non disponible ou refusé, utilisation position par défaut.");
         fetchNearbyShopsOSM(userPos.lat, userPos.lng);
         fetchReports();
+        listenRealtimeReports();
       },
       { timeout: 10000 }
     );
   } else {
     fetchNearbyShopsOSM(userPos.lat, userPos.lng);
     fetchReports();
+    listenRealtimeReports();
   }
 }
 
-// Recherche des magasins via l'API gratuite Overpass
+// Recherche des commerces à proximité via l'API Overpass (OpenStreetMap)
 async function fetchNearbyShopsOSM(lat, lng) {
   const storeSelect = document.getElementById("store-select");
+  if (!storeSelect) return;
+
   storeSelect.innerHTML = "<option value=''>Chargement des commerces proches...</option>";
 
   const query = `
@@ -130,7 +141,7 @@ async function fetchNearbyShopsOSM(lat, lng) {
   }
 }
 
-// Récupération des signalements
+// Récupération initiale de tous les signalements
 async function fetchReports() {
   if (!supabaseClient) return;
 
@@ -140,31 +151,114 @@ async function fetchReports() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Erreur Supabase :", error);
+    console.error("Erreur de lecture des signalements Supabase :", error);
     return;
   }
 
-  if (reports) {
+  const feedContainer = document.getElementById("reports-feed");
+  if (feedContainer) feedContainer.innerHTML = "";
+
+  if (reports && reports.length > 0) {
     reports.forEach((report) => {
-      const statusText = report.status === "Disponible" ? "🟢 En stock" : "🔴 En rupture";
-      
-      L.marker([report.latitude, report.longitude])
-        .addTo(map)
-        .bindPopup(`
-          <strong>${report.product_name}</strong><br/>
-          🏬 ${report.store_name || "Commerce"}<br/>
-          Statut : ${statusText}<br/>
-          <small>${new Date(report.created_at).toLocaleString()}</small>
-        `);
+      addReportToUI(report, false);
     });
+  } else if (feedContainer) {
+    feedContainer.innerHTML = "<p class='empty-feed'>Aucun signalement pour le moment.</p>";
   }
 }
 
-// Envoi du formulaire
+// Ajouter un signalement sur la carte et dans le flux d'informations
+function addReportToUI(report, isNew = false) {
+  const statusText = report.status === "Disponible" ? "🟢 En stock" : "🔴 En rupture";
+  const formattedDate = new Date(report.created_at).toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+
+  // 1. Ajouter / Mettre à jour le marqueur sur la carte
+  L.marker([report.latitude, report.longitude])
+    .addTo(map)
+    .bindPopup(`
+      <strong>${report.product_name}</strong><br/>
+      🏬 ${report.store_name || "Commerce"}<br/>
+      Statut : ${statusText}<br/>
+      🕒 <small>Signalé le : ${formattedDate}</small>
+    `);
+
+  // 2. Ajouter la ligne dans la liste des signalements
+  const feedContainer = document.getElementById("reports-feed");
+  if (feedContainer) {
+    // Retirer le message "Aucun signalement" s'il existe
+    const emptyMsg = feedContainer.querySelector(".empty-feed");
+    if (emptyMsg) emptyMsg.remove();
+
+    const item = document.createElement("div");
+    item.className = `feed-item ${report.status === "Disponible" ? "disponible" : "rupture"}`;
+    item.innerHTML = `
+      <div class="feed-details">
+        <strong>${report.product_name} (${statusText})</strong>
+        <span>🏬 ${report.store_name || "Commerce"}</span>
+      </div>
+      <div class="feed-time">🕒 ${formattedDate}</div>
+    `;
+
+    feedContainer.prepend(item);
+  }
+}
+
+// Affichage de la notification flottante temporaire
+function showInstantNotification(report) {
+  const formattedDate = new Date(report.created_at).toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+
+  const toast = document.createElement("div");
+  toast.className = "toast-notification";
+  toast.innerHTML = `
+    <strong>🚨 Nouveau Signalement Instantané !</strong><br/>
+    📦 <b>${report.product_name}</b> - ${report.status === "Disponible" ? "🟢 En stock" : "🔴 En rupture"}<br/>
+    🏬 ${report.store_name || "Commerce"}<br/>
+    🕒 <small>Signalé le : ${formattedDate}</small>
+  `;
+
+  document.body.appendChild(toast);
+
+  // Supprime la notification au bout de 5 secondes
+  setTimeout(() => {
+    toast.remove();
+  }, 5000);
+}
+
+// Écoute en temps réel des nouveaux signalements Supabase
+function listenRealtimeReports() {
+  if (!supabaseClient) return;
+
+  supabaseClient
+    .channel("public:reports")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "reports" },
+      (payload) => {
+        const newReport = payload.new;
+        addReportToUI(newReport, true);
+        showInstantNotification(newReport);
+      }
+    )
+    .subscribe();
+}
+
+// Soumission d'un nouveau signalement
 async function handleReportSubmit(e) {
   e.preventDefault();
 
-  const storeIndex = document.getElementById("store-select").value;
+  const storeSelect = document.getElementById("store-select");
+  const storeIndex = storeSelect ? storeSelect.value : "";
   const productName = document.getElementById("product-name").value;
   const status = document.getElementById("status").value;
 
@@ -180,26 +274,33 @@ async function handleReportSubmit(e) {
   }
 
   if (!supabaseClient) {
-    alert("Problème de connexion à la base de données.");
+    alert("Problème d'initialisation de la base de données.");
     return;
   }
 
-  const { error } = await supabaseClient.from("reports").insert([
-    {
-      product_name: productName,
-      status: status,
-      store_name: storeName,
-      latitude: reportLat,
-      longitude: reportLng
-    }
-  ]);
+  const newRecord = {
+    product_name: productName,
+    status: status,
+    store_name: storeName,
+    latitude: reportLat,
+    longitude: reportLng
+  };
+
+  const { data, error } = await supabaseClient
+    .from("reports")
+    .insert([newRecord])
+    .select();
 
   if (error) {
     alert("Erreur lors de l'envoi du signalement.");
-    console.error(error);
+    console.error("Erreur Supabase insert:", error);
   } else {
-    alert("Signalement ajouté avec succès !");
     document.getElementById("report-form").reset();
-    fetchReports();
+    
+    // Si la souscription Realtime ne déclenche pas immédiatement, on rafraîchit localement
+    if (data && data.length > 0) {
+      addReportToUI(data[0], true);
+      showInstantNotification(data[0]);
+    }
   }
 }
