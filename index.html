@@ -1,141 +1,133 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Disponibilité en Direct</title>
-  
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DispoMarée / Suivi en direct</title>
+
   <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- Styles CSS -->
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+  <!-- En-tête du site -->
   <header class="app-header">
-    <div class="header-top">
-      <h1>🛒 Disponibilité en Direct</h1>
-      <div id="online-users-badge" class="online-badge">
-        <span class="pulse-green"></span> <span id="connected-users-count">1</span> en ligne
+    <div class="header-container">
+      <h1>🔍 DispoTracker</h1>
+      <div class="online-badge">
+        <span class="pulse-dot"></span>
+        <span id="connected-users-count">2903</span> en ligne
       </div>
     </div>
-    <p>Signalez et trouvez les produits & carburants disponibles à proximité</p>
-    <div class="powered-by">Powered by Choco</div>
   </header>
 
   <main class="main-container">
     
-    <!-- Colonne de gauche : Formulaire & Carte -->
+    <!-- Colonne de Gauche : Formulaire et Rapport -->
     <section class="left-column">
       
+      <!-- Formulaire de signalement -->
       <div class="card-panel">
-        <h2 class="card-title">📝 Publier un signalement</h2>
+        <h2 class="card-title">📝 Faire un signalement</h2>
         <form id="report-form">
-          
           <div class="form-group">
-            <label for="product-select">Produit / Carburant</label>
+            <label for="product-select">Produit recherché</label>
             <select id="product-select" class="form-control" onchange="toggleCustomProductInput(this)" required>
-              <option value="" disabled selected>-- Sélectionnez un produit --</option>
-              <optgroup label="⛽ Carburants">
-                <option value="Essence Sans Plomb">⛽ Essence Sans Plomb</option>
-                <option value="Gasoil / Diesel">⛽ Gasoil / Diesel</option>
-                <option value="Gasoil 50">⛽ Gasoil 50</option>
-                <option value="Bouteille de gaz">🔥 Bouteille de gaz</option>
-              </optgroup>
-              <optgroup label="🛒 Produits alimentaires">
-                <option value="Eau minérale">🥤 Eau minérale</option>
-                <option value="Lait">🥛 Lait</option>
-                <option value="Sucre">🧂 Sucre</option>
-                <option value="Farine">🌾 Farine</option>
-                <option value="Huile d'olive">🫒 Huile d'olive</option>
-                <option value="Huile végétale">🧴 Huile végétale</option>
-                <option value="Pâtes / Riz">🍝 Pâtes / Riz</option>
-                <option value="Café">☕ Café</option>
-              </optgroup>
-              <optgroup label="Autre">
-                <option value="Autre">✏️ Autre (Saisie libre)</option>
-              </optgroup>
+              <option value="">-- Choisir un produit --</option>
+              <option value="Lait">Lait</option>
+              <option value="Sucre">Sucre</option>
+              <option value="Huile végétale">Huile végétale</option>
+              <option value="Café">Café</option>
+              <option value="Semoule / Farine">Semoule / Farine</option>
+              <option value="Carburant (Essence/Gasoil)">Carburant (Essence/Gasoil)</option>
+              <option value="Autre">Autre (préciser)...</option>
             </select>
           </div>
 
           <div class="form-group" id="custom-product-group" style="display: none;">
             <label for="product-custom">Nom du produit personnalisé</label>
-            <input type="text" id="product-custom" class="form-control" placeholder="Entrez le nom..." />
+            <input type="text" id="product-custom" class="form-control" placeholder="Ex: Eau minérale 1.5L">
           </div>
 
           <div class="form-group">
-            <label for="status">État du stock</label>
-            <select id="status" class="form-control" required>
-              <option value="Disponible">🟢 En stock / Disponible</option>
-              <option value="Rupture">🔴 En rupture</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="store-select">Commerce / Station-Service</label>
-            <select id="store-select" class="form-control">
+            <label for="store-select">Station ou Commerce à proximité</label>
+            <select id="store-select" class="form-control" required>
               <option value="">Recherche des lieux proches...</option>
             </select>
           </div>
 
-          <button type="submit" class="btn-submit">Publier le signalement</button>
+          <div class="form-group">
+            <label for="status">Disponibilité</label>
+            <select id="status" class="form-control" required>
+              <option value="Disponible">🟢 En stock (Disponible)</option>
+              <option value="Rupture">🔴 En rupture</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn-primary">Envoyer le signalement</button>
         </form>
       </div>
 
-      <div class="map-wrapper">
-        <button class="btn-locate" onclick="recenterMap()">🎯 Ma position</button>
-        <div id="map"></div>
-      </div>
-
-    </section>
-
-    <!-- Colonne de droite : Stats & Flux en direct -->
-    <section class="right-column">
-      
-      <!-- Rapport Statistique -->
+      <!-- Rapport en direct mis à jour -->
       <div class="card-panel stats-panel">
         <h2 class="card-title">📊 Rapport en direct</h2>
         <div class="stats-grid">
           <div class="stat-box">
             <span class="stat-num" id="stat-total">0</span>
-            <span class="stat-lbl">Total signalements</span>
+            <span class="stat-lbl">Signalements</span>
           </div>
           <div class="stat-box">
             <span class="stat-num text-green" id="stat-dispo">0</span>
-            <span class="stat-lbl">Disponibles</span>
+            <span class="stat-lbl">En stock</span>
           </div>
           <div class="stat-box">
             <span class="stat-num text-red" id="stat-rupture">0</span>
             <span class="stat-lbl">En rupture</span>
           </div>
+          <div class="stat-box">
+            <span class="stat-num text-blue" id="stat-online">2903</span>
+            <span class="stat-lbl">Connectés</span>
+          </div>
+        </div>
+        <div class="stat-region-box" style="margin-top: 12px; font-size: 0.88rem; color: var(--text-muted); text-align: center; border-top: 1px solid rgba(0,0,0,0.05); pt: 8px;">
+          📍 Région la plus active : <strong id="stat-top-region" style="color: var(--text-main);">Calcul en cours...</strong>
         </div>
       </div>
 
-      <div class="card-panel">
-        <div class="feed-header">
-          <h2 class="card-title" style="margin-bottom:0;">Derniers signalements</h2>
-          <span class="live-badge">
-            <span class="live-pulse"></span> EN DIRECT
-          </span>
+    </section>
+
+    <!-- Colonne de Droite : Carte et Flux des signalements -->
+    <section class="right-column">
+      
+      <div class="card-panel map-panel-container">
+        <div class="map-header-actions">
+          <h2 class="card-title" style="margin-bottom:0;">🗺️ Carte interactive</h2>
+          <button class="btn-recenter" onclick="recenterMap()">📍 Centrer sur ma position</button>
         </div>
-        
-        <div id="reports-feed" class="feed-list">
-          <!-- Les signalements s'affichent ici -->
+        <div id="map"></div>
+      </div>
+
+      <div class="card-panel">
+        <h2 class="card-title">⚡ Derniers signalements en direct</h2>
+        <div id="reports-feed" class="reports-feed">
+          <p style="color:var(--text-muted); text-align:center;">Chargement des signalements...</p>
         </div>
       </div>
+
     </section>
 
   </main>
 
-  <footer class="app-footer">
-    <p>Powered by <strong>Choco</strong></p>
-  </footer>
-
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
   <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Supabase JS -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <!-- Application JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- App Logic -->
   <script src="app.js"></script>
 </body>
 </html>
