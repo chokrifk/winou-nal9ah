@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Changement du titre de l'onglet du navigateur -->
-  <title>Winou</title>
+  <title>Winou - Disponibilité en Direct</title>
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
@@ -17,39 +16,57 @@
   <header class="app-header">
     <div class="header-top">
       <div class="header-title-wrapper">
-        <!-- Changement du titre principal dans l'en-tête -->
-        <h1>🔍 Winou</h1>
-        <span class="tunisia-flag-emoji" title="Tunisie">🇹🇳</span>
+        <div class="app-logo-icon">📍</div>
+        <div>
+          <h1>Winou</h1>
+          <p>La cartographie intelligente des stocks et carburants en temps réel</p>
+        </div>
       </div>
       
-      <div id="online-users-badge" class="online-badge">
-        <span class="pulse-green"></span> <span id="connected-users-count">2903</span> en ligne
+      <div class="header-right-actions">
+        <span class="tunisia-flag-emoji" title="Tunisie">🇹🇳</span>
+        <div id="online-users-badge" class="online-badge">
+          <span class="pulse-green"></span> <span id="connected-users-count">2903</span> en ligne
+        </div>
       </div>
     </div>
-    <p>Signalez et trouvez les produits & carburants disponibles à proximité</p>
-    <div class="powered-by">Powered by Choco</div>
   </header>
 
   <main class="main-container">
     
-    <!-- Colonne de gauche : Formulaire & Rapport -->
+    <!-- Colonne de gauche : Formulaire & Rapport intelligent -->
     <section class="left-column">
       
+      <!-- Barre de recherche rapide globale -->
+      <div class="card-panel search-panel-box">
+        <div class="search-bar-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="global-search-input" class="form-control" placeholder="Rechercher un produit, une station..." oninput="handleGlobalSearch(this.value)">
+        </div>
+        <!-- Filtres rapides interactifs -->
+        <div class="filter-pills">
+          <button class="pill-btn active" onclick="filterReports('all', this)">🌐 Tous</button>
+          <button class="pill-btn" onclick="filterReports('Disponible', this)">🟢 En stock</button>
+          <button class="pill-btn" onclick="filterReports('Rupture', this)">🔴 En rupture</button>
+        </div>
+      </div>
+
+      <!-- Formulaire de signalement intelligent -->
       <div class="card-panel">
-        <h2 class="card-title">📝 Publier un signalement</h2>
+        <h2 class="card-title">⚡ Publier un signalement intelligent</h2>
         <form id="report-form">
           
           <div class="form-group">
-            <label for="product-select">Produit / Carburant</label>
+            <label for="product-select">Produit / Carburant recherché</label>
             <select id="product-select" class="form-control" onchange="toggleCustomProductInput(this)" required>
-              <option value="" disabled selected>-- Sélectionnez un produit --</option>
-              <optgroup label="⛽ Carburants">
+              <option value="" disabled selected>-- Sélectionnez une catégorie --</option>
+              <optgroup label="⛽ Carburants & Énergie">
                 <option value="Essence Sans Plomb">⛽ Essence Sans Plomb</option>
                 <option value="Gasoil / Diesel">⛽ Gasoil / Diesel</option>
                 <option value="Gasoil 50">⛽ Gasoil 50</option>
                 <option value="Bouteille de gaz">🔥 Bouteille de gaz</option>
               </optgroup>
-              <optgroup label="🛒 Produits alimentaires">
+              <optgroup label="🛒 Produits de première nécessité">
                 <option value="Eau minérale">🥤 Eau minérale</option>
                 <option value="Lait">🥛 Lait</option>
                 <option value="Sucre">🧂 Sucre</option>
@@ -60,46 +77,55 @@
                 <option value="Café">☕ Café</option>
               </optgroup>
               <optgroup label="Autre">
-                <option value="Autre">✏️ Autre (Saisie libre)</option>
+                <option value="Autre">✏️ Autre (Saisie personnalisée)</option>
               </optgroup>
             </select>
           </div>
 
           <div class="form-group" id="custom-product-group" style="display: none;">
-            <label for="product-custom">Nom du produit personnalisé</label>
-            <input type="text" id="product-custom" class="form-control" placeholder="Entrez le nom..." />
+            <label for="product-custom">Nom précis du produit</label>
+            <input type="text" id="product-custom" class="form-control" placeholder="Ex: Semoule extra 1kg..." />
           </div>
 
           <div class="form-group">
-            <label for="status">État du stock</label>
+            <label for="status">Statut de disponibilité</label>
             <select id="status" class="form-control" required>
-              <option value="Disponible">🟢 En stock / Disponible</option>
-              <option value="Rupture">🔴 En rupture</option>
+              <option value="Disponible">🟢 En stock (Disponible)</option>
+              <option value="Rupture">🔴 En rupture de stock</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label for="store-select">Commerce / Station-Service</label>
-            <select id="store-select" class="form-control">
-              <option value="">Recherche des lieux proches...</option>
+            <label for="store-select">Lieu / Commerce / Station (Détecté autour de vous)</label>
+            <select id="store-select" class="form-control" required>
+              <option value="">🔄 Analyse de votre position géographique...</option>
             </select>
           </div>
 
-          <button type="submit" class="btn-submit">Publier le signalement</button>
+          <!-- Champ caché pour la position interactive sélectionnée sur la carte -->
+          <input type="hidden" id="selected-lat">
+          <input type="hidden" id="selected-lng">
+          <input type="hidden" id="selected-custom-address">
+
+          <div class="map-hint-box">
+            💡 <i>Astuce : Vous pouvez aussi cliquer directement sur la carte interactive pour pointer un emplacement précis !</i>
+          </div>
+
+          <button type="submit" class="btn-submit">🚀 Diffuser l'alerte en direct</button>
         </form>
       </div>
 
-      <!-- Rapport Statistique en direct -->
+      <!-- Rapport Statistique Live -->
       <div class="card-panel stats-panel">
-        <h2 class="card-title">📊 Rapport en direct</h2>
+        <h2 class="card-title">📊 Synthèse nationale en direct</h2>
         <div class="stats-grid">
           <div class="stat-box">
             <span class="stat-num" id="stat-total">0</span>
-            <span class="stat-lbl">Signalements</span>
+            <span class="stat-lbl">Alertes</span>
           </div>
           <div class="stat-box">
             <span class="stat-num text-green" id="stat-dispo">0</span>
-            <span class="stat-lbl">En stock</span>
+            <span class="stat-lbl">Disponibles</span>
           </div>
           <div class="stat-box">
             <span class="stat-num text-red" id="stat-rupture">0</span>
@@ -110,31 +136,32 @@
             <span class="stat-lbl">Connectés</span>
           </div>
         </div>
-        <div class="stat-region-box" style="margin-top: 12px; font-size: 0.88rem; color: #64748b; text-align: center; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 8px;">
-          📍 Région la plus active : <strong id="stat-top-region" style="color: #0f172a;">Calcul en cours...</strong>
+        <div class="stat-region-box">
+          📍 Zone sous haute activité : <strong id="stat-top-region">Analyse en cours...</strong>
         </div>
       </div>
 
     </section>
 
-    <!-- Colonne de droite : Carte et Flux -->
+    <!-- Colonne de droite : Carte Interactive & Flux Intelligent -->
     <section class="right-column">
       
       <div class="map-wrapper">
-        <button class="btn-locate" onclick="recenterMap()">🎯 Ma position</button>
+        <div class="map-overlay-badge">🗺️ Cliquez sur la carte pour cibler un lieu</div>
+        <button class="btn-locate" onclick="recenterMap()">🎯 Ma position GPS</button>
         <div id="map"></div>
       </div>
 
       <div class="card-panel">
         <div class="feed-header">
-          <h2 class="card-title" style="margin-bottom:0;">Derniers signalements</h2>
+          <h2 class="card-title" style="margin-bottom:0;">Flux des alertes en direct</h2>
           <span class="live-badge">
-            <span class="live-pulse"></span> EN DIRECT
+            <span class="live-pulse"></span> LIVE SYNC
           </span>
         </div>
         
         <div id="reports-feed" class="feed-list">
-          <p style="color:#64748b; text-align:center;">Aucun signalement pour le moment.</p>
+          <p style="color:#64748b; text-align:center; padding: 20px;">Chargement des données géo-localisées...</p>
         </div>
       </div>
     </section>
@@ -142,7 +169,7 @@
   </main>
 
   <footer class="app-footer">
-    <p>Powered by <strong>Choco</strong></p>
+    <p>Winou Engine v3.0 • Powered by <strong>Choco</strong> 🇹🇳</p>
   </footer>
 
   <!-- Leaflet JS -->
