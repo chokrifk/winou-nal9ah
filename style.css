@@ -431,7 +431,7 @@ body {
 .badge-dispo { background: #d1fae5; color: #065f46; }
 .badge-rupture { background: #fee2e2; color: #991b1b; }
 
-/* Assistant IA Flottant */
+/* Assistant IA Flottant & Modale */
 .ai-floating-assistant {
   position: fixed;
   bottom: 24px;
@@ -454,6 +454,61 @@ body {
 .ai-floating-assistant:hover {
   transform: scale(1.05);
   box-shadow: 0 8px 25px rgba(37, 99, 235, 0.6);
+}
+
+.ai-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-modal-content {
+  background: white;
+  width: 90%; max-width: 420px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  height: 480px;
+}
+
+.ai-modal-header {
+  background: #2563eb; color: white;
+  padding: 14px 18px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-weight: 700;
+}
+
+.ai-close-btn {
+  background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;
+}
+
+.ai-chat-messages {
+  flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem;
+}
+
+.ai-msg {
+  padding: 10px 14px; border-radius: 12px; max-width: 85%; line-height: 1.4;
+}
+.ai-msg.bot { background: #f1f5f9; color: #0f172a; align-self: flex-start; }
+.ai-msg.user { background: #2563eb; color: white; align-self: flex-end; }
+
+.ai-chat-input-area {
+  padding: 12px; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; background: #f8fafc;
+}
+
+.ai-chat-input-area input {
+  flex: 1; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none;
+}
+
+.ai-chat-input-area button {
+  background: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; cursor: pointer;
 }
 
 /* Toast Notification élégant */
