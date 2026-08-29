@@ -1,92 +1,153 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Win Nal9a - Cartographie Intelligente</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Disponibilité en Direct</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <!-- Styles CSS -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- Barre supérieure KPI -->
-    <header class="app-header">
-        <div class="logo-area">
-            <h1>📍 Win Nal9a</h1>
-            <span class="subtitle">Cartographie intelligente des stocks</span>
-        </div>
-        <div class="kpi-banner">
-            <div class="kpi-item">
-                <span class="kpi-dot"></span>
-                <span id="connected-count">2904</span> en ligne
-            </div>
-            <div class="kpi-item">
-                📊 Top lieu : <strong id="top-location">Ariana</strong>
-            </div>
-        </div>
-    </header>
-
-    <div class="main-container">
-        <!-- Bouton mobile pour ouvrir le panneau -->
-        <button id="toggle-sidebar" class="mobile-toggle-btn">☰ Filtrer & Signaler</button>
-
-        <!-- Panneau latéral (Tiroir) -->
-        <aside id="sidebar" class="sidebar">
-            <div class="sidebar-section">
-                <h3>🔍 Filtrer & Proximité</h3>
-                <select id="product-filter" class="form-control">
-                    <option value="all">Tous les produits et carburants</option>
-                    <option value="Essence Sans Plomb">Essence Sans Plomb</option>
-                    <option value="Eau minérale">Eau minérale</option>
-                </select>
-                <div class="filter-actions">
-                    <button class="btn btn-primary active" data-filter="all">Tout</button>
-                    <button class="btn btn-success" data-filter="stock">Stock</button>
-                    <button class="btn btn-danger" data-filter="rupture">Rupture</button>
-                </div>
-            </div>
-
-            <div class="sidebar-section">
-                <h3>⚡ Publier un signalement</h3>
-                <form id="signal-form">
-                    <div class="form-group">
-                        <label>Produit / Carburant</label>
-                        <select id="signal-product" class="form-control" required>
-                            <option value="">-- Sélectionnez --</option>
-                            <option value="Essence Sans Plomb">Essence Sans Plomb</option>
-                            <option value="Eau minérale">Eau minérale</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Statut</label>
-                        <select id="signal-status" class="form-control" required>
-                            <option value="En stock">🟢 En stock</option>
-                            <option value="En rupture">🔴 En rupture</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Lieu / Station</label>
-                        <input type="text" id="signal-location" class="form-control" placeholder="Ex: Station Agil, Ennasr" required>
-                    </div>
-                    <button type="submit" class="btn btn-submit">Diffuser l'alerte</button>
-                </form>
-            </div>
-
-            <div class="sidebar-section">
-                <h3>📋 Flux des alertes en direct</h3>
-                <div id="alerts-stream" class="alerts-stream">
-                    <!-- Flux dynamique -->
-                </div>
-            </div>
-        </aside>
-
-        <!-- Carte interactive -->
-        <main class="map-container">
-            <div id="map"></div>
-        </main>
+  <!-- En-tête du site -->
+  <header class="app-header">
+    <div class="header-top">
+      <div class="header-title-wrapper">
+        <h1>🛒 Disponibilité en Direct</h1>
+        <span class="tunisia-flag-emoji" title="Tunisie">🇹🇳</span>
+      </div>
+      
+      <div id="online-users-badge" class="online-badge">
+        <span class="pulse-green"></span> <span id="connected-users-count">2903</span> en ligne
+      </div>
     </div>
+    <p>Signalez et trouvez les produits & carburants disponibles à proximité</p>
+    <div class="powered-by">Powered by Choco</div>
+  </header>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="app.js"></script>
+  <main class="main-container">
+    
+    <!-- Colonne de gauche : Formulaire & Rapport -->
+    <section class="left-column">
+      
+      <div class="card-panel">
+        <h2 class="card-title">📝 Publier un signalement</h2>
+        <form id="report-form">
+          
+          <div class="form-group">
+            <label for="product-select">Produit / Carburant</label>
+            <select id="product-select" class="form-control" onchange="toggleCustomProductInput(this)" required>
+              <option value="" disabled selected>-- Sélectionnez un produit --</option>
+              <optgroup label="⛽ Carburants">
+                <option value="Essence Sans Plomb">⛽ Essence Sans Plomb</option>
+                <option value="Gasoil / Diesel">⛽ Gasoil / Diesel</option>
+                <option value="Gasoil 50">⛽ Gasoil 50</option>
+                <option value="Bouteille de gaz">🔥 Bouteille de gaz</option>
+              </optgroup>
+              <optgroup label="🛒 Produits alimentaires">
+                <option value="Eau minérale">🥤 Eau minérale</option>
+                <option value="Lait">🥛 Lait</option>
+                <option value="Sucre">🧂 Sucre</option>
+                <option value="Farine">🌾 Farine</option>
+                <option value="Huile d'olive">🫒 Huile d'olive</option>
+                <option value="Huile végétale">🧴 Huile végétale</option>
+                <option value="Pâtes / Riz">🍝 Pâtes / Riz</option>
+                <option value="Café">☕ Café</option>
+              </optgroup>
+              <optgroup label="Autre">
+                <option value="Autre">✏️ Autre (Saisie libre)</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div class="form-group" id="custom-product-group" style="display: none;">
+            <label for="product-custom">Nom du produit personnalisé</label>
+            <input type="text" id="product-custom" class="form-control" placeholder="Entrez le nom..." />
+          </div>
+
+          <div class="form-group">
+            <label for="status">État du stock</label>
+            <select id="status" class="form-control" required>
+              <option value="Disponible">🟢 En stock / Disponible</option>
+              <option value="Rupture">🔴 En rupture</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="store-select">Commerce / Station-Service</label>
+            <select id="store-select" class="form-control">
+              <option value="">Recherche des lieux proches...</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn-submit">Publier le signalement</button>
+        </form>
+      </div>
+
+      <!-- Rapport Statistique en direct -->
+      <div class="card-panel stats-panel">
+        <h2 class="card-title">📊 Rapport en direct</h2>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-num" id="stat-total">0</span>
+            <span class="stat-lbl">Signalements</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-num text-green" id="stat-dispo">0</span>
+            <span class="stat-lbl">En stock</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-num text-red" id="stat-rupture">0</span>
+            <span class="stat-lbl">En rupture</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-num text-blue" id="stat-online">2903</span>
+            <span class="stat-lbl">Connectés</span>
+          </div>
+        </div>
+        <div class="stat-region-box" style="margin-top: 12px; font-size: 0.88rem; color: #64748b; text-align: center; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 8px;">
+          📍 Région la plus active : <strong id="stat-top-region" style="color: #0f172a;">Calcul en cours...</strong>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Colonne de droite : Carte et Flux -->
+    <section class="right-column">
+      
+      <div class="map-wrapper">
+        <button class="btn-locate" onclick="recenterMap()">🎯 Ma position</button>
+        <div id="map"></div>
+      </div>
+
+      <div class="card-panel">
+        <div class="feed-header">
+          <h2 class="card-title" style="margin-bottom:0;">Derniers signalements</h2>
+          <span class="live-badge">
+            <span class="live-pulse"></span> EN DIRECT
+          </span>
+        </div>
+        
+        <div id="reports-feed" class="feed-list">
+          <p style="color:#64748b; text-align:center;">Aucun signalement pour le moment.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <p>Powered by <strong>Choco</strong></p>
+  </footer>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Supabase JS -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <!-- Application JS -->
+  <script src="app.js"></script>
 </body>
 </html>
